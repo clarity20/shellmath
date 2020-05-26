@@ -1,32 +1,36 @@
-####################################################################################
+################################################################################
 # shellfloat.sh
-# Shell functions for floating-point arithmetic using only built-in shell features
+# Shell functions for floating-point arithmetic using only builtins
 #
 # Usage:
 #
-# source shellfloat.sh
-# sum="$(add 77.8002 -5)"
-# difference="$(sub 145.22 33.9)"
-# p1=9.0909;  p2=88.8
-# product="$(mul $p1 $p2)"
-# quotient="$(div a_1 a_2)"
-###################################################################################
+#    source thisPath/shellfloat.sh
+#    add() { echo $(_shellfloat_add "$@"); }    # Rename as desired
+#    mySum=$(add 202.895 6.00311)
+# 
+################################################################################
 
 declare -A __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
-    [NON_DECIMAL]="2:Not a decimal number: %s"
+    [ILLEGAL_NUMBER]="2:Not a decimal number: %s"
+)
+
+declare -A __shellfloat_numericTypes=(
+    [INTEGER]=64
+    [DECIMAL]=32
+    [SCIENTIFIC]=16
 )
 
 function _shellfloat_getReturnCode()
 {
-    errorName="$1"
+    local errorName="$1"
     return ${__shellfloat_returnCodes[$errorName]%%:*}
 }
 
 function _shellfloat_errorOut()
 {
-    # Argument 1 format:  returnCode:msgTemplate
+    # Format of $1:  returnCode:msgTemplate
     [[ "$1" =~ ^([0-9]+):(.*) ]]
     returnCode=${BASH_REMATCH[1]}
     msgTemplate=${BASH_REMATCH[2]}
@@ -38,32 +42,82 @@ function _shellfloat_errorOut()
     return $returnCode
 }
 
-function _shellfloat_validateDecimal()
+function _shellfloat_validateNumber()
 {
-    n="$1"
-    isNegative=FALSE
+    local n="$1"
+    local isNegative=FALSE
     
-    # Accept a leading negative sign
+    # Initialize return code to SUCCESS
+    __shellFloat_getReturnCode SUCCESS
+    local returnCode=$?
+
+    # Strip off leading negative sign, if present
     if [[ "$n" =~ ^[-] ]]; then
         n=${n:1}
         isNegative=TRUE
     fi
     
-    [[ "$n" =~ ^[0-9]+$ ]] && return ${__shellfloat_returnCodes[SUCCESS]%%:*}
+    # Accept integers
+    if [[ "$n" =~ ^[0-9]+$ ]]; then
+        returnCode=${__shellfloat_numericTypes[INTEGER]}
+        echo $isNegative
+        return $returnCode
+    fi
+
+    # Accept decimals: leading digits (optional), decimal point, trailing digits
+    if [[ "$n" =~ ^[0-9]*\.[0-9]+$ ]]; then
+        returnCode=${__shellfloat_numericTypes[DECIMAL]}
+        echo $isNegative
+        return $returnCode
+    fi
+
+    # Accept scientific notation: 1e5, 2.44E+10, etc.
+    if [[ "$n" =~ (.*)[Ee](.*) ]]; then
+        local significand=${BASH_REMATCH[1]}
+        local exponent=${BASH_REMATCH[2]}
+
+        # Significand must be int or decimal between 1 and 10
+        if [[ "$significand" =~ ^([1-9]\.)?[0-9]+$ ]]; then
+
+            # Exponent must be int with optional sign prefix
+            if [[ "$exponent" =~ ^[-+]?[0-9]+$ ]]; then
+                returnCode=${__shellfloat_numericTypes[SCIENTIFIC]}
+                echo $isNegative
+                return $returnCode
+            fi
+        fi
+    fi
+
+    # Reject everyything else
+    returnCode=${_shellfloat_errorCodes[]}
 }
 
-function add()
+function _shellfloat_add()
 {
-    a_1="$1"
-    a_2="$2"
+    local n1="$1"
+    local n2="$2"
 
-    _shellfloat_validateDecimal "$a_1" || return  $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "NON_DECIMAL")  "$a_1")
-    _shellfloat_validateDecimal "$a_2" || return  $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "NON_DECIMAL")  "$a_2")
+    _shellfloat_validateNumber "$n1" || return  \
+        $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "ILLEGAL_NUMBER")  "$n1")
+    _shellfloat_validateNumber "$n2" || return  \
+        $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "ILLEGAL_NUMBER")  "$n2")
 
 
 #    sum= ******** do the math ********
-
+#    add negative sign if needed
     echo sum
     return  $(__shellfloat_getReturnCode  "SUCCESS")
+}
+
+function _shellfloat_subtract()
+{
+}
+
+function _shellfloat_multiply()
+{
+}
+
+function _shellfloat_divide()
+{
 }
 
