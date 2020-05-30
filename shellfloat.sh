@@ -13,7 +13,7 @@
 declare -A __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
-    [ILLEGAL_NUMBER]="2:Not a decimal number: %s"
+    [ILLEGAL_NUMBER]="2:Invalid decimal number argument: '%s'"
 )
 
 declare -A __shellfloat_numericTypes=(
@@ -28,18 +28,43 @@ function _shellfloat_getReturnCode()
     return ${__shellfloat_returnCodes[$errorName]%%:*}
 }
 
-function _shellfloat_errorOut()
+function _shellfloat_warn()
 {
+    # Generate an error message and return control to the caller
+    _shellfloat_handleError -r "$@"
+    return $?
+}
+
+function _shellfloat_exit()
+{
+    # Generate an error message and EXIT THE SCRIPT / interpreter
+    _shellfloat_handleError "$@"
+}
+
+function _shellfloat_handleError()
+{
+    # Hidden option "-r" causes return instead of exit
+    if [[ "$1" == "-r" ]]; then
+        returnDontExit=TRUE
+        shift
+    fi
+
     # Format of $1:  returnCode:msgTemplate
     [[ "$1" =~ ^([0-9]+):(.*) ]]
     returnCode=${BASH_REMATCH[1]}
     msgTemplate=${BASH_REMATCH[2]}
-
     shift
-    msgTemplateValues="$@"
     
-    printf  "$msgTemplate"  "${msgTemplateValues[@]}"
-    return $returnCode
+    # Display error msg, making parameter substitutions as needed
+    msgParameters="$@"
+    printf  "$msgTemplate" "${msgParameters[@]}"
+
+    if [[ $returnDontExit == TRUE ]]; then
+        return $returnCode
+    else
+        exit $returnCode
+    fi
+
 }
 
 function _shellfloat_validateNumber()
@@ -76,7 +101,7 @@ function _shellfloat_validateNumber()
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
-        # Significand must be int or decimal between 1 and 10
+        # Significand must be int or decimal:  1 <= signif < 10
         if [[ "$significand" =~ ^([1-9]\.)?[0-9]+$ ]]; then
 
             # Exponent must be int with optional sign prefix
@@ -88,8 +113,9 @@ function _shellfloat_validateNumber()
         fi
     fi
 
-    # Reject everyything else
-    returnCode=${_shellfloat_errorCodes[]}
+    # Reject everything else
+    returnCode=${_shellfloat_errorCodes[ILLEGAL_NUMBER]}
+    return $returnCode
 }
 
 function _shellfloat_add()
@@ -97,10 +123,10 @@ function _shellfloat_add()
     local n1="$1"
     local n2="$2"
 
-    _shellfloat_validateNumber "$n1" || return  \
-        $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "ILLEGAL_NUMBER")  "$n1")
-    _shellfloat_validateNumber "$n2" || return  \
-        $(_shellfloat_errorOut  $(_shellfloat_getReturnCode "ILLEGAL_NUMBER")  "$n2")
+    _shellfloat_validateNumber "$n1" || \
+          _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
+    _shellfloat_validateNumber "$n2" || \
+          _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
 
 
 #    sum= ******** do the math ********
@@ -111,13 +137,16 @@ function _shellfloat_add()
 
 function _shellfloat_subtract()
 {
+    return 0
 }
 
 function _shellfloat_multiply()
 {
+    return 0
 }
 
 function _shellfloat_divide()
 {
+    return 0
 }
 

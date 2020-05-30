@@ -1,3 +1,27 @@
+function _shellfloat_assert_returnCode()
+{
+    _shellfloat_assert_functionReturn -c "$@"
+    return $?
+}
+
+function _shellfloat_assert_returnString()
+{
+    echo "$(_shellfloat_assert_functionReturn "$@")"
+    return $?
+}
+
+
+function _shellfloat_assert_equal()
+{
+    if [[ $# != 2 ]]; then
+        echo USAGE: "$FUNCNAME" value1 value2
+        echo Two input arguments required.
+    fi
+}
+
+###############################################################################
+# Internal functions
+###############################################################################
 
 function _shellfloat_assert_functionReturn()
 {
@@ -18,13 +42,11 @@ function _shellfloat_assert_functionReturn()
     expectedReturn="$1"
     func="$2"
     shift 2
-    args="$@"
 
-    returnString="$("$func" "$args")"
+    args=("$@")
+
+    returnString="$("$func" "${args[@]}")"
     returnCode=$?
-
-#    echo str: $returnString
-#    echo code: $returnCode
 
     if [[ $mode == RETURN_STRING ]]; then
         if [[ "$returnString" == "$expectedReturn" ]]; then
@@ -46,18 +68,3 @@ function _shellfloat_assert_functionReturn()
 
 }
 
-function _shellfloat_assert_returnCode()
-{
-    _shellfloat_assert_functionReturn -c "$@"
-    return $?
-}
-
-function _shellfloat_assert_valueCompare()
-{
-    if [[ $# != 2 ]]; then
-        echo USAGE: "$FUNCNAME" value1 value2
-        echo Two input arguments required.
-    fi
-
-#    if "$1"
-}
