@@ -2,6 +2,8 @@
 # shellfloat.sh
 # Shell functions for floating-point arithmetic using only builtins
 #
+# Copyright (c) 2020 by Michael Wood. All rights reserved.
+#
 # Usage:
 #
 #    source thisPath/shellfloat.sh
