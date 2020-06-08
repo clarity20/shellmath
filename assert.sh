@@ -48,20 +48,22 @@ function _shellfloat_assert_functionReturn()
     returnString="$("$func" "${args[@]}")"
     returnCode=$?
 
+    resultFormat="%-5s"
+
     if [[ $mode == RETURN_STRING ]]; then
         if [[ "$returnString" == "$expectedReturn" ]]; then
-            echo ok
+            printf $resultFormat ok
             return 0
         else
-            echo FAIL
+            printf $resultFormat FAIL
             return 1
         fi
     elif [[ $mode == RETURN_CODE ]]; then
         if [[ "$returnCode" == "$expectedReturn" ]]; then
-            echo ok
+            printf $resultFormat ok
             return 0
         else
-            echo FAIL
+            printf $resultFormat FAIL
             return 1
         fi
     fi

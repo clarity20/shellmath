@@ -15,8 +15,8 @@ function _shellfloat_runTests()
     local lineNumber=$1
     local text=$2
 
-    # Enable line continuation. Cannot access global storage
-    # inside a mapfile function call, so we use the disk.
+    # Enable line continuation. Since this function is invoked with
+    # the mapfile builtin, we cannot access global storage, so we use the disk.
     local COMMAND_BUFFER=/tmp/shellfloat.tmp
 
     # Trim leading whitespace
@@ -47,8 +47,50 @@ function _shellfloat_runTests()
             command=$text
         fi
 
-        # Process the command
-        echo The command is "$command"
+        words=($command)
+
+        # Expand first word to an assertion function
+        case ${words[0]} in
+
+            Code)
+                words[0]=_shellfloat_assert_return${words[0]}
+
+                # Validate next word as a positive integer
+                if [[ ! "${words[1]}" =~ ^[0-9]+$ ]]; then
+                    echo Line: $lineNumber: Command "$command"
+                    echo FAIL: \"Code\" requires integer return code
+                    return 1
+                else
+                    nextWord=2
+                fi
+                ;;
+
+            String)
+                words[0]=_shellfloat_assert_return${words[0]}
+                if [[ ${words[1]} =~ ^\" ]]; then
+                    for ((nextWord=2;;nextWord++)); do
+                        if [[ ${words[nextWord]} =~ \"$ ]]; then
+                            ((nextWord++))
+                            break
+                        fi
+                    done
+                fi
+                ;;
+
+            *)
+                echo Line $lineNumber: Command "$command"
+                echo FAIL: Code or String indicator required
+                return 2
+                ;;
+        esac
+
+        # Expand the next word to a shellfloat function name
+        words[nextWord]=_shellfloat_${words[nextWord]}
+
+        # Run the command, being respectful of shell metacharacters
+        fullCommand="${words[@]}"
+        eval $fullCommand
+        echo $lineNumber: "$command"
 
         # Empty the command buffer
         : > "$COMMAND_BUFFER"
@@ -56,7 +98,19 @@ function _shellfloat_runTests()
 
 }
 
-mapfile -t -c 1 -C _shellfloat_runTests < "${1:-testCases.in}"
 
-rm -f /tmp/shellfloat.tmp
+function _main()
+{
+    source shellfloat.sh
+    source assert.sh
+    
+    # Process the test file line-by-line using the above runTests() function
+    mapfile -t -c 1 -C _shellfloat_runTests < "${1:-testCases.in}"
+    
+    rm -f /tmp/shellfloat.tmp
+    
+    exit 0
+}
+
+_main "$@"
 
