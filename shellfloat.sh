@@ -12,17 +12,23 @@
 # 
 ################################################################################
 
-declare -A __shellfloat_returnCodes=(
+declare -A -r __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
     [ILLEGAL_NUMBER]="2:Invalid decimal number argument: '%s'"
 )
 
-declare -A __shellfloat_numericTypes=(
+declare -A -r __shellfloat_numericTypes=(
     [INTEGER]=64
     [DECIMAL]=32
     [SCIENTIFIC]=16
 )
+declare -r __shellfloat_allTypes=$((__shellfloat_numericTypes[INTEGER] \
+    + __shellfloat_numericTypes[DECIMAL] \
+    + __shellfloat_numericTypes[SCIENTIFIC]))
+
+declare -r __shellfloat_true=1
+declare -r __shellfloat_false=0
 
 function _shellfloat_getReturnCode()
 {
@@ -47,7 +53,7 @@ function _shellfloat_handleError()
 {
     # Hidden option "-r" causes return instead of exit
     if [[ "$1" == "-r" ]]; then
-        returnDontExit=TRUE
+        returnDontExit=${__shellfloat_true}
         shift
     fi
 
@@ -61,7 +67,7 @@ function _shellfloat_handleError()
     msgParameters="$@"
     printf  "$msgTemplate" "${msgParameters[@]}"
 
-    if [[ $returnDontExit == TRUE ]]; then
+    if [[ $returnDontExit == ${__shellfloat_true} ]]; then
         return $returnCode
     else
         exit $returnCode
@@ -69,11 +75,12 @@ function _shellfloat_handleError()
 
 }
 
-function _shellfloat_validateNumber()
+function _shellfloat_validateAndParse()
 {
     local n="$1"
-    local isNegative=FALSE
-    
+    local isNegative=${__shellfloat_false}
+    local numericType
+
     # Initialize return code to SUCCESS
     __shellFloat_getReturnCode SUCCESS
     local returnCode=$?
@@ -81,25 +88,23 @@ function _shellfloat_validateNumber()
     # Strip off leading negative sign, if present
     if [[ "$n" =~ ^[-] ]]; then
         n=${n:1}
-        isNegative=TRUE
+        isNegative=${__shellfloat_true}
     fi
     
     # Accept integers
     if [[ "$n" =~ ^[0-9]+$ ]]; then
-        returnCode=${__shellfloat_numericTypes[INTEGER]}
-        echo $isNegative
-        return $returnCode
-    fi
+        numericType=${__shellfloat_numericTypes[INTEGER]}
+        echo $n
+        return $((numericType|isNegative))
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
-    if [[ "$n" =~ ^[0-9]*\.[0-9]+$ ]]; then
-        returnCode=${__shellfloat_numericTypes[DECIMAL]}
-        echo $isNegative
-        return $returnCode
-    fi
+    elif [[ "$n" =~ ^([0-9]*)\.([0-9]+)$ ]]; then
+        numericType=${__shellfloat_numericTypes[DECIMAL]}
+        echo ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
+        return $((numericType|isNegative))
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
-    if [[ "$n" =~ (.*)[Ee](.*) ]]; then
+    elif [[ "$n" =~ (.*)[Ee](.*) ]]; then
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
@@ -108,27 +113,79 @@ function _shellfloat_validateNumber()
 
             # Exponent must be int with optional sign prefix
             if [[ "$exponent" =~ ^[-+]?[0-9]+$ ]]; then
-                returnCode=${__shellfloat_numericTypes[SCIENTIFIC]}
-                echo $isNegative
-                return $returnCode
+                numericType=${__shellfloat_numericTypes[SCIENTIFIC]}
+                echo $significand $exponent
+                return $((numericType|isNegative))
             fi
         fi
-    fi
 
     # Reject everything else
-    returnCode=${_shellfloat_errorCodes[ILLEGAL_NUMBER]}
-    return $returnCode
+    else
+        returnCode=${_shellfloat_returnCodes[ILLEGAL_NUMBER]}
+        echo ""
+        return $returnCode
+    fi
 }
 
 function _shellfloat_add()
 {
     local n1="$1"
     local n2="$2"
+    declare -a numericParts
+    declare -i flags
 
-    _shellfloat_validateNumber "$n1" || \
-          _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
-    _shellfloat_validateNumber "$n2" || \
-          _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
+    declare -ri SUCCESS=$(_shellfloat_getReturnCode "SUCCESS")
+    declare -ri ILLEGAL_NUMBER=$(_shellfloat_getReturnCode "ILLEGAL_NUMBER")
+
+    if [[ $# -eq 0 ]]; then
+        echo ""
+        return $SUCCESS
+    fi
+
+    numericParts=($(_shellfloat_validateAndParse "$n1"))
+    flags=$?
+    if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
+    {
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
+        return $?
+    }
+
+    if [[ $# -eq 1 ]]; then
+        echo $n1
+        return $SUCCESS
+    elif [[ $# -gt 2 ]]; then
+        shift
+        n2=$(_shellfloat_add "$@")
+        local recursiveReturn=$?
+        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
+            echo $n2
+            return $recursiveReturn
+        fi
+    fi
+
+    local integerPart1=${numericParts[0]}
+    local fractionalPart1=${numericParts[1]}
+    declare isNegative1=$((flags & __shellfloat_true))
+    declare type1=$((flags & __shellfloat_allTypes))
+
+    numericParts=($(_shellfloat_validateAndParse "$n2"))
+    flags=$?
+    if [[ $flags == $ILLEGAL_NUMBER ]]; then
+    {
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
+        return $?
+    }
+
+    local integerPart2=${numericParts2[0]}
+    local fractionalPart2=${mnumericParts2[1]}
+    declare isNegative2=$((flags & __shellfloat_true))
+    declare type2=$((flags & __shellfloat_allTypes))
+
+    if [[ $type1 == ${__shellfloat_numericTypes[SCIENTIFIC]} \
+       || $type2 == ${__shellfloat_numericTypes[SCIENTIFIC]} ]]; then
+        echo Scientific notation not yet implemented.
+        return 0
+    fi
 
 
 #    sum= ******** do the math ********
