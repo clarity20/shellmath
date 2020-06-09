@@ -133,6 +133,7 @@ function _shellfloat_add()
     local n2="$2"
     declare -a numericParts
     declare -i flags
+    local sign
 
     declare -ri SUCCESS=$(_shellfloat_getReturnCode "SUCCESS")
     declare -ri ILLEGAL_NUMBER=$(_shellfloat_getReturnCode "ILLEGAL_NUMBER")
@@ -145,10 +146,9 @@ function _shellfloat_add()
     numericParts=($(_shellfloat_validateAndParse "$n1"))
     flags=$?
     if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
-    {
         _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
         return $?
-    }
+    fi
 
     if [[ $# -eq 1 ]]; then
         echo $n1
@@ -163,23 +163,22 @@ function _shellfloat_add()
         fi
     fi
 
-    local integerPart1=${numericParts[0]}
-    local fractionalPart1=${numericParts[1]}
     declare isNegative1=$((flags & __shellfloat_true))
     declare type1=$((flags & __shellfloat_allTypes))
+    local integerPart1=${numericParts[0]}
+    local fractionalPart1=${numericParts[1]}
 
     numericParts=($(_shellfloat_validateAndParse "$n2"))
     flags=$?
     if [[ $flags == $ILLEGAL_NUMBER ]]; then
-    {
         _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
         return $?
-    }
+    fi
 
-    local integerPart2=${numericParts2[0]}
-    local fractionalPart2=${mnumericParts2[1]}
     declare isNegative2=$((flags & __shellfloat_true))
     declare type2=$((flags & __shellfloat_allTypes))
+    local integerPart2=${numericParts[0]}
+    local fractionalPart2=${numericParts[1]}
 
     if [[ $type1 == ${__shellfloat_numericTypes[SCIENTIFIC]} \
        || $type2 == ${__shellfloat_numericTypes[SCIENTIFIC]} ]]; then
@@ -187,9 +186,35 @@ function _shellfloat_add()
         return 0
     fi
 
+    # Right-pad the decimal parts as needed
+    declare floatLen1=${#fractionalPart1}
+    declare floatLen2=${#fractionalPart2}
+    if ((floatLen1 > floatLen2)); then
+        ((fractionalPart2 *= 10**(floatLen1-floatLen2)))
+    elif ((floatLen2 > floatLen1)); then
+        ((fractionalPart1 *= 10**(floatLen2-floatLen1)))
+    fi
 
-#    sum= ******** do the math ********
-#    add negative sign if needed
+    # Add the fractional parts
+    if ((isNegative1)); then ((fractionalPart1*=-1)); fi
+    if ((isNegative2)); then ((fractionalPart2*=-1)); fi
+    declare floatSum=$((fractionalPart1+fractionalPart2))
+
+    # Carry/borrow a digit if necessary, i.e. if the sum is longer than either
+    # addend. Since the (absolute) fractional parts now have the same lengths,
+    # we can check the (absolute) sum against either length.
+    declare absSum=${floatSum#-} absPart1=${fractionalPart1#-}
+    if (( ${#absSum} > ${#absPart1} )); then
+        if ((floatSum > 0)); then
+            ((integerPart1 += 1))
+            floatSum=${floatSum:1}
+        else
+            ((integerPart1 -= 1))
+            floatSum="-"${floatSum:2}
+        fi
+    fi
+
+#TODO Check the sign of the result!
     echo sum
     return  $(__shellfloat_getReturnCode  "SUCCESS")
 }
