@@ -6,7 +6,7 @@ function _shellfloat_assert_returnCode()
 
 function _shellfloat_assert_returnString()
 {
-    echo "$(_shellfloat_assert_functionReturn "$@")"
+    echo -n "$(_shellfloat_assert_functionReturn "$@")"
     return $?
 }
 
