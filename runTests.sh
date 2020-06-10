@@ -74,6 +74,8 @@ function _shellfloat_runTests()
                             break
                         fi
                     done
+                else
+                    nextWord=2
                 fi
                 ;;
 
