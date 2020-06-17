@@ -1,10 +1,8 @@
-#!/usr/bin/env bash
-
 ################################################################
 # The general testcase syntax is 
-#    asserter  expectation   functionUnderTest [args ... ]
+#    assertionType  expectedValue   functionUnderTest [args ... ]
 #
-# where asserter is either of:
+# where assertionType is either of:
 #    Code      to indicate decimal return code
 #    String    to indicate the string generated as a side effect
 #
@@ -12,12 +10,50 @@
 # with the "_shellfloat_" prefix removed.
 ################################################################
 
+################################
+# Tests for SUPPORTING FUNCTIONS
+################################
+
 # Tests for getReturnCode()
 Code 0   getReturnCode SUCCESS
 Code 1   getReturnCode FAIL
+Code 2   getReturnCode ILLEGAL_NUMBER
 
-# Tests for warn()
+## Tests for warn()
 String "Invalid decimal number argument: '2.qr'"  \
     warn "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}" 2.qr
 
+## Tests for validateAndParse():
+## Validate a number, determine its type and sign, split it into parts
+
+# Detect Invalid input
+Code    2    validateAndParse NaN
+# Positive integers
+String  "4"  validateAndParse 4
+Code    64   validateAndParse 4
+# Negative integers
+String    9    validateAndParse -9
+Code     65    validateAndParse -9
+# Decimals
+String  "4 2" validateAndParse 4.2
+Code    32    validateAndParse 4.2
+# Negative decimals
+Code    33    validateAndParse -4.2
+# Scientific / exponential notation
+String  "3.4 5"    validateAndParse 3.4e5
+Code    16    validateAndParse 3.4e5
+# Signed exponents
+String  "3.4 5"    validateAndParse 3.4e+5
+Code    16    validateAndParse 3.4e+5
+
+
+####################
+# Tests for ADDITION
+####################
+String 4     add 4
+String 9     add 4 5
+String -3.8    add -1.9 -1.9
+
+# Recursive/multiple addition
+#String 6 add 1 2 3
 
