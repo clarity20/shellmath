@@ -47,7 +47,6 @@ function _shellfloat_assert_functionReturn()
 
     returnString="$("$func" "${args[@]}")"
     returnCode=$?
-
     resultFormat="%-5s"
 
     if [[ $mode == RETURN_STRING ]]; then

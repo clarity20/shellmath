@@ -67,16 +67,24 @@ function _shellfloat_runTests()
 
             String)
                 words[0]=_shellfloat_assert_return${words[0]}
+                # Allow multiword arguments if quoted
                 if [[ ${words[1]} =~ ^\" ]]; then
-                    for ((nextWord=2;;nextWord++)); do
-                        if [[ ${words[nextWord]} =~ \"$ ]]; then
-                            ((nextWord++))
-                            break
-                        fi
-                    done
+                    if [[ ${words[1]} =~ \"$ ]]; then
+                        nextWord=2
+                    else
+                        for ((nextWord=2;;nextWord++)); do
+                            if [[ ${words[nextWord]} =~ \"$ ]]; then
+                                ((nextWord++))
+                                break
+                            fi
+                        done
+                    fi
                 else
                     nextWord=2
                 fi
+                ;;
+
+            Both)
                 ;;
 
             *)
