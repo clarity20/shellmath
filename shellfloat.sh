@@ -82,7 +82,7 @@ function _shellfloat_validateAndParse()
     local numericType
 
     # Initialize return code to SUCCESS
-    __shellFloat_getReturnCode SUCCESS
+    _shellfloat_getReturnCode SUCCESS
     local returnCode=$?
 
     # Strip off leading negative sign, if present
@@ -113,6 +113,12 @@ function _shellfloat_validateAndParse()
 
             # Exponent must be int with optional sign prefix
             if [[ "$exponent" =~ ^[-+]?[0-9]+$ ]]; then
+                if [[ "$exponent" =~ ^[-] ]]; then
+                    ((isNegative |= __shellfloat_true << 1))
+                    exponent=${exponent:1}
+                else
+                    exponent=$((exponent))    # Strip plus sign, if any
+                fi
                 numericType=${__shellfloat_numericTypes[SCIENTIFIC]}
                 echo $significand $exponent
                 return $((numericType|isNegative))
@@ -135,11 +141,13 @@ function _shellfloat_add()
     declare -i flags
     local sign
 
-    declare -ri SUCCESS=$(_shellfloat_getReturnCode "SUCCESS")
-    declare -ri ILLEGAL_NUMBER=$(_shellfloat_getReturnCode "ILLEGAL_NUMBER")
+    _shellfloat_getReturnCode "SUCCESS"
+    declare -ri SUCCESS=$?
+    _shellfloat_getReturnCode "ILLEGAL_NUMBER"
+    declare -ri ILLEGAL_NUMBER=$?
 
     if [[ $# -eq 0 ]]; then
-        echo ""
+        echo "Usage: $FUNCNAME  addend_1  addend_2"
         return $SUCCESS
     fi
 
@@ -186,37 +194,61 @@ function _shellfloat_add()
         return 0
     fi
 
-    # Right-pad the decimal parts as needed
+    # Right-pad the decimal parts to give them equal length
     declare floatLen1=${#fractionalPart1}
     declare floatLen2=${#fractionalPart2}
     if ((floatLen1 > floatLen2)); then
         ((fractionalPart2 *= 10**(floatLen1-floatLen2)))
-    elif ((floatLen2 > floatLen1)); then
+    else
         ((fractionalPart1 *= 10**(floatLen2-floatLen1)))
     fi
 
-    # Add the fractional parts
-    if ((isNegative1)); then ((fractionalPart1*=-1)); fi
-    if ((isNegative2)); then ((fractionalPart2*=-1)); fi
-    declare floatSum=$((fractionalPart1+fractionalPart2))
-
-    # Carry/borrow a digit if necessary, i.e. if the sum is longer than either
-    # addend. Since the (absolute) fractional parts now have the same lengths,
-    # we can check the (absolute) sum against either length.
-    declare absSum=${floatSum#-} absPart1=${fractionalPart1#-}
-    if (( ${#absSum} > ${#absPart1} )); then
-        if ((floatSum > 0)); then
-            ((integerPart1 += 1))
-            floatSum=${floatSum:1}
-        else
-            ((integerPart1 -= 1))
-            floatSum="-"${floatSum:2}
-        fi
+    if ((isNegative1)); then
+        ((fractionalPart1 *= -1))
+        ((integerPart1 *= -1))
+    fi
+    if ((isNegative2)); then
+        ((fractionalPart2 *= -1))
+        ((integerPart2 *= -1))
     fi
 
-#TODO Check the sign of the result!
-    echo sum
-    return  $(__shellfloat_getReturnCode  "SUCCESS")
+    ((fractionalSum = fractionalPart1+fractionalPart2))
+    ((integerSum = integerPart1+integerPart2))
+
+    # Carry a digit from fraction to integer if required
+    if ((${#fractionalSum} > ${#fractionalPart1})); then
+        local carryAmount
+        ((carryAmount=isNegative1?-1:1))
+        ((integerSum += carryAmount))
+        # Remove the leading 1-digit whether the fraction is + or -
+        fractionalSum=${fractionalSum/1/}
+    fi
+
+    # Resolve sign discrepancies between the partial sums
+    if ((integerSum < 0 && fractionalSum > 0)); then
+        ((integerSum += 1))
+        ((fractionalSum = 10**${#fractionalSum} - fractionalSum))
+    elif ((integerSum > 0 && fractionalSum < 0)); then
+        ((integerSum -= 1))
+        ((fractionalSum = 10**${#fractionalSum} + fractionalSum))
+    fi
+
+    # Touch up the numbers for display
+    if ((fractionalSum < 0)); then ((fractionalSum*=-1)); fi
+    if ((fractionalSum)); then
+        printf -v sum "%s.%s" $integerSum $fractionalSum
+    else
+        sum=$integerSum
+    fi
+
+
+
+    # Carefully test zero-valued partial sums
+
+
+
+    echo $sum
+    return $SUCCESS
 }
 
 function _shellfloat_subtract()
