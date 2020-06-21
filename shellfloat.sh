@@ -85,21 +85,25 @@ function _shellfloat_validateAndParse()
     _shellfloat_getReturnCode SUCCESS
     local returnCode=$?
 
-    # Strip off leading negative sign, if present
-    if [[ "$n" =~ ^[-] ]]; then
-        n=${n:1}
-        isNegative=${__shellfloat_true}
-    fi
     
     # Accept integers
-    if [[ "$n" =~ ^[0-9]+$ ]]; then
+    if [[ "$n" =~ ^[-]?[0-9]+$ ]]; then
         numericType=${__shellfloat_numericTypes[INTEGER]}
+
+        n=$(_shellfloat_factorOutMinusSign "$n")
+        isNegative=$?
+
         echo $n
         return $((numericType|isNegative))
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
-    elif [[ "$n" =~ ^([0-9]*)\.([0-9]+)$ ]]; then
+    elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
         numericType=${__shellfloat_numericTypes[DECIMAL]}
+
+        # Strip off negative sign (if present) and track it
+        n=$(_shellfloat_factorOutMinusSign "$n")
+        isNegative=$?
+
         echo ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
         return $((numericType|isNegative))
 
@@ -108,30 +112,53 @@ function _shellfloat_validateAndParse()
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
-        # Significand must be int or decimal:  1 <= signif < 10
-        if [[ "$significand" =~ ^([1-9]\.)?[0-9]+$ ]]; then
+        # Significand may be either integer or decimal:  1 <= |signif| < 10
+        if [[ "$significand" =~ ^[-]?([1-9]\.)?[0-9]+$ ]]; then
+            # Break down and store the significand
+            declare -a significandParts
+            significandParts=($(_shellfloat_validateAndParse "$significand"))
+            declare sigRet=$?
+            local isSigNegative=$(($sigRet & $__shellfloat_true))
 
-            # Exponent must be int with optional sign prefix
+            # Exponent must be an integer with optional sign prefix
             if [[ "$exponent" =~ ^[-+]?[0-9]+$ ]]; then
+                local isExpNegative=${__shellfloat_false}
                 if [[ "$exponent" =~ ^[-] ]]; then
-                    ((isNegative |= __shellfloat_true << 1))
+                    isExpNegative=${__shellfloat_true}
                     exponent=${exponent:1}
                 else
-                    exponent=$((exponent))    # Strip plus sign, if any
+                    exponent=$((exponent))    # Strip the + sign, if any
                 fi
+
                 numericType=${__shellfloat_numericTypes[SCIENTIFIC]}
-                echo $significand $exponent
+                isNegative=$((isSigNegative<<1 | isExpNegative))
+                echo ${significandParts[0]} ${significandParts[1]} $exponent
                 return $((numericType|isNegative))
             fi
         fi
 
     # Reject everything else
     else
-        returnCode=${_shellfloat_returnCodes[ILLEGAL_NUMBER]}
+        _shellfloat_getReturnCode ILLEGAL_NUMBER
+        returnCode=$?
         echo ""
         return $returnCode
     fi
 }
+
+function _shellfloat_factorOutMinusSign()
+{
+    local isNegative=$__shellfloat_false
+
+    if [[ "${1:0:1}" == '-' ]]; then
+        n=${n:1}
+        isNegative=${__shellfloat_true}
+    fi
+
+    echo "$n"
+    return $isNegative
+}
+
 
 function _shellfloat_add()
 {
