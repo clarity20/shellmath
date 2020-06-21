@@ -27,25 +27,34 @@ String "Invalid decimal number argument: '2.qr'"  \
 ## Validate a number, determine its type and sign, split it into parts
 
 # Detect Invalid input
-Code    2    validateAndParse NaN
+Code    2      validateAndParse NaN
+String    ""   validateAndParse NaN
 # Positive integers
-String  "4"  validateAndParse 4
-Code    64   validateAndParse 4
+String  "4"    validateAndParse 4
+Code    64     validateAndParse 4
 # Negative integers
 String    9    validateAndParse -9
 Code     65    validateAndParse -9
 # Decimals
-String  "4 2" validateAndParse 4.2
-Code    32    validateAndParse 4.2
+String  "4 2"  validateAndParse 4.2
+Code    32     validateAndParse 4.2
 # Negative decimals
-Code    33    validateAndParse -4.2
+Code    33     validateAndParse -4.2
 # Scientific / exponential notation
-String  "3.4 5"    validateAndParse 3.4e5
-Code    16    validateAndParse 3.4e5
-# Signed exponents
-String  "3.4 5"    validateAndParse 3.4e+5
-Code    16    validateAndParse 3.4e+5
-
+String  "3 4 5"  validateAndParse 3.4e5
+Code    16       validateAndParse 3.4e5
+String  "3 4 5"  validateAndParse -3.4e5
+Code    18       validateAndParse -3.4e5
+# + signed exponents
+String  "3 4 5"  validateAndParse 3.4e+5
+Code    16       validateAndParse 3.4e+5
+String  "3 4 5"  validateAndParse -3.4e+5
+Code    18       validateAndParse -3.4e+5
+# - signed exponents: negativity is reflected in Code
+String  "3 4 5"  validateAndParse 3.4e-5
+Code    17       validateAndParse 3.4e-5
+String  "3 4 5"  validateAndParse -3.4e-5
+Code    19       validateAndParse -3.4e-5
 
 ####################
 # Tests for ADDITION
