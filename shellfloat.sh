@@ -226,8 +226,10 @@ function _shellfloat_add()
     declare floatLen2=${#fractionalPart2}
     if ((floatLen1 > floatLen2)); then
         ((fractionalPart2 *= 10**(floatLen1-floatLen2)))
+        ((floatLen2=floatLen1))
     elif ((floatLen2 > floatLen1)); then
         ((fractionalPart1 *= 10**(floatLen2-floatLen1)))
+        ((floatLen1=floatLen2))
     fi
 
     if ((isNegative1)); then
@@ -240,18 +242,21 @@ function _shellfloat_add()
     fi
 
     ((integerSum = integerPart1+integerPart2))
-    ((fractionalSum = 10#$fractionalPart1 + 10#$fractionalPart2))
 
-    if ((${#fractionalSum} < floatLen1)); then
-        # Force the shell to treat fractional parts with leading zeros
-        # as base-10 numbers and to respect the zeroes' place value
+    # Add fractional parts, forcing the shell to treat fractional parts
+    # with leading zeros as base-10 numbers
+    ((fractionalSum = 10#$fractionalPart1 + 10#$fractionalPart2))
+    fracSumLength=${#fractionalSum}
+
+    # Retain zero-pad to respect place value
+    if ((floatLen1 > fracSumLength)); then
         local lengthDiff=$((floatLen1 - ${#fractionalSum}))
         fractionalSum=$((10**lengthDiff))$fractionalSum
         fractionalSum=${fractionalSum:1}
     fi
 
     # Carry a digit from fraction to integer if required
-    if ((${#fractionalSum} > ${#fractionalPart1})); then
+    if ((fractionalSum!=0 && fracSumLength > floatLen1)); then
         local carryAmount
         ((carryAmount=isNegative1?-1:1))
         ((integerSum += carryAmount))

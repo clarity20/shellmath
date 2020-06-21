@@ -64,8 +64,9 @@ String 9     add 4 5
 String 2.214    add 1.105 1.109
 # Negative with carry
 String -3.8    add -1.9 -1.9
-# "Point-zero" decimals' place-value trickiness
+# Place-value trickiness with leading & trailing zeros
 String 2.014    add 1.005 1.009
+String 2.01462    add 1.005 1.00962
 
 # Recursive/multiple addition
 #String 6 add 1 2 3
