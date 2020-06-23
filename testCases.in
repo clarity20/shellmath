@@ -61,11 +61,22 @@ Code    19       validateAndParse -3.4e-5
 ####################
 String 4     add 4
 String 9     add 4 5
+
+# Same-length decimal tails with no leading zeros, no carry across decimal point
 String 2.214    add 1.105 1.109
-# Negative with carry
+
+# Carry across decimal point
+String 3.8    add 1.9 1.9
 String -3.8    add -1.9 -1.9
-# Place-value trickiness with leading & trailing zeros
+
+# Different-length decimals, one with leading zero
+String 2.195    add 1.105 1.09
+String -2.195    add -1.105 -1.09
+
+# Same-length tails having leading zeros
 String 2.014    add 1.005 1.009
+# Different-length tails with and without leading zeros
+String 3.31462    add 1.905 1.40962
 String 2.01462    add 1.005 1.00962
 
 # Recursive/multiple addition

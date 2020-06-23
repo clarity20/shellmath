@@ -221,42 +221,64 @@ function _shellfloat_add()
         return 0
     fi
 
-    # Right-pad the decimal parts to give them equal length
-    declare floatLen1=${#fractionalPart1}
-    declare floatLen2=${#fractionalPart2}
-    if ((floatLen1 > floatLen2)); then
-        ((fractionalPart2 *= 10**(floatLen1-floatLen2)))
-        ((floatLen2=floatLen1))
-    elif ((floatLen2 > floatLen1)); then
-        ((fractionalPart1 *= 10**(floatLen2-floatLen1)))
-        ((floatLen1=floatLen2))
+    # Right-pad the fractional parts with zeros to align by place value,
+    # using string formatting techniques to avoid mathematical side-effects
+    declare fractionalLen1=${#fractionalPart1}
+    declare fractionalLen2=${#fractionalPart2}
+    if ((fractionalLen1 > fractionalLen2)); then
+        printf -v fractionalPart2 %-*s $fractionalLen1 $fractionalPart2
+        fractionalPart2=${fractionalPart2// /0}
+    elif ((fractionalLen2 > fractionalLen1)); then
+        printf -v fractionalPart1 %-*s $fractionalLen2 $fractionalPart1
+        fractionalPart1=${fractionalPart1// /0}
     fi
+    declare unsignedFracLength=${#fractionalPart1}
 
+    # Implement a sign convention that will enable us to detect carries by
+    # comparing string lengths of addends and sums: propagate the sign across
+    # both numeric parts (whether unsigned or zero).
     if ((isNegative1)); then
-        ((fractionalPart1 *= -1))
-        ((integerPart1 *= -1))
+        fractionalPart1="-"$fractionalPart1
+        integerPart1="-"$integerPart1
     fi
     if ((isNegative2)); then
-        ((fractionalPart2 *= -1))
-        ((integerPart2 *= -1))
+        fractionalPart2="-"$fractionalPart2
+        integerPart2="-"$integerPart2
     fi
 
+    declare -i integerSum=0
     ((integerSum = integerPart1+integerPart2))
 
-    # Add fractional parts, forcing the shell to treat fractional parts
-    # with leading zeros as base-10 numbers
-    ((fractionalSum = 10#$fractionalPart1 + 10#$fractionalPart2))
-    fracSumLength=${#fractionalSum}
+    # Summing the fractional parts is tricky: We need to override the shell's
+    # default interpretation of leading zeros, but the operator for doing this
+    # (the "10#" operator) cannot work directly with negative numbers. So we
+    # break it all down.
+    declare fractionalSum=0    # "-i" flag would prevent string manipulation
+    if ((isNegative1)); then
+        ((fractionalSum += (-1) * 10#${fractionalPart1:1}))
+    else
+        ((fractionalSum += 10#$fractionalPart1))
+    fi
+    if ((isNegative2)); then
+        ((fractionalSum += (-1) * 10#${fractionalPart2:1}))
+    else
+        ((fractionalSum += 10#$fractionalPart2))
+    fi
 
-    # Retain zero-pad to respect place value
-    if ((floatLen1 > fracSumLength)); then
-        local lengthDiff=$((floatLen1 - ${#fractionalSum}))
+    unsignedFracSumLength=${#fractionalSum}
+    if [[ "$fractionalSum" =~ ^[-] ]]; then
+        ((unsignedFracSumLength--))
+    fi
+
+    # Restore any leading zeroes that were lost when adding
+    if ((unsignedFracSumLength < unsignedFracLength)); then
+        local lengthDiff=$((unsignedFracLength - unsignedFracSumLength))
         fractionalSum=$((10**lengthDiff))$fractionalSum
-        fractionalSum=${fractionalSum:1}
+        fractionalSum=${fractionalSum#1}
     fi
 
     # Carry a digit from fraction to integer if required
-    if ((fractionalSum!=0 && fracSumLength > floatLen1)); then
+    if ((fractionalSum!=0 && unsignedFracSumLength > unsignedFracLength)); then
         local carryAmount
         ((carryAmount=isNegative1?-1:1))
         ((integerSum += carryAmount))
@@ -271,6 +293,9 @@ function _shellfloat_add()
     elif ((integerSum > 0 && fractionalSum < 0)); then
         ((integerSum -= 1))
         ((fractionalSum = 10**${#fractionalSum} + fractionalSum))
+    elif ((integerSum == 0 && fractionalSum < 0)); then
+        integerSum="-"$integerSum
+        ((fractionalSum *= -1))
     fi
 
     # Touch up the numbers for display
@@ -280,12 +305,6 @@ function _shellfloat_add()
     else
         sum=$integerSum
     fi
-
-
-
-    # Carefully test zero-valued partial sums
-
-
 
     echo $sum
     return $SUCCESS
