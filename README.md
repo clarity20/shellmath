@@ -1,17 +1,17 @@
 # shellfloat
 Introducing floating-point arithmetic libraries for the Bash shell, because
-they said it couldn't be done -- and because:
+they said it couldn't be done... and because:
 ![image info](./image.png)
 
 ## Usage
 ```
-source path/to/shellfloat.sh
-x=3.14159; y=2.718281828
-sum=$(_shellfloat_add $x $y)
-quotient=$(_shellfloat_divide myQuotient $x $y)
+bash-4.4.29% source path/to/shellfloat.sh
+bash-4.4.29% x=3.14159; y=2.718281828
+bash-4.4.29% sum=$(_shellfloat_add $x $y)
+bash-4.4.29% quotient=$(_shellfloat_divide $x $y)
 
-echo $x + $y = $sum
-echo $x / $y = $quotient
+bash-4.4.29% echo $x + $y = $sum
+bash-4.4.29% echo $x / $y = $quotient
 ```
 
 ## How it works
@@ -26,3 +26,5 @@ _ad astra per aspera_.
 ## And now...
 You can run your computations directly in Bash!
 
+## Please see also:
+[A short discussion on arbitrary precision and shellfloat](https://github.com/clarity20/shellfloat/wiki "arbitrary precision and shellfloat")
