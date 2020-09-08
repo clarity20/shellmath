@@ -21,7 +21,7 @@ works with them as if they were integers, and recombines the results.
 Because if we can get carrying, borrowing, place value, and the distributive
 law right, then the sky's the limit! In other words:
 
-_Ad astra per aspera_.
+        Ad astra per aspera.
 
 ## And now...
 You can run your computations directly in Bash!
