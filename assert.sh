@@ -45,12 +45,18 @@ function _shellfloat_assert_functionReturn()
 
     args=("$@")
 
-    returnString="$("$func" "${args[@]}")"
+    "$func" "${args[@]}"
     returnCode=$?
+
+    # Fetch the return values. Their number will vary.
+    declare -a returns
+    _shellfloat_getReturnValues returns[0] returns[1] returns[2] \
+        returns[3] returns[4] returns[5] returns[6] returns[7]
+
     resultFormat="%-5s"
 
     if [[ $mode == RETURN_STRING ]]; then
-        if [[ "$returnString" == "$expectedReturn" ]]; then
+        if [[ "${returns[@]}" == "$expectedReturn" ]]; then
             printf $resultFormat ok
             return 0
         else
