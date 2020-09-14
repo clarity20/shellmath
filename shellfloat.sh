@@ -75,6 +75,54 @@ function _shellfloat_handleError()
 
 }
 
+
+################################################################################
+# Simulate pass-and-return by reference using a secret global storage array
+################################################################################
+
+declare -a _shellfloat_storage
+declare -ir _shellfloat_storageSpace=8
+
+function _shellfloat_setReturnValues()
+{
+    declare -i _i
+    local _givenValue _storageCell
+
+    for ((_i=1; _i<=$#; _i++)); do
+        _storageCell="_shellfloat_storage["$_i"]"
+        _givenValue=${!_i}
+        eval $_storageCell='$_givenValue'
+    done
+    for ((; _i<=_shellfloat_storageSpace; _i++)); do
+        unset _shellfloat_storage[$_i]
+    done
+}
+
+function _shellfloat_getReturnValues()
+{
+    declare -i _i
+    local _variableName _value _storageCell
+
+    for ((_i=1; _i<=$#; _i++)); do
+        _variableName=${!_i}
+        _storageCell="_shellfloat_storage["$_i"]"
+        _valueInStorage=${!_storageCell}
+        if [[ -n $_valueInStorage ]]; then
+            eval $_variableName='$_valueInStorage'
+        else
+            unset $_variableName
+        fi
+    done
+}
+
+function _shellfloat_setReturnValue() { _shellfloat_setReturnValues "$1"; }
+function _shellfloat_getReturnValue() { _shellfloat_getReturnValues "$1"; }
+
+
+################################################################################
+# Validate and parse arguments to the main arithmetic routines
+################################################################################
+
 function _shellfloat_validateAndParse()
 {
     local n="$1"
@@ -84,27 +132,31 @@ function _shellfloat_validateAndParse()
     # Initialize return code to SUCCESS
     _shellfloat_getReturnCode SUCCESS
     local returnCode=$?
-
     
     # Accept integers
     if [[ "$n" =~ ^[-]?[0-9]+$ ]]; then
         numericType=${__shellfloat_numericTypes[INTEGER]}
 
-        n=$(_shellfloat_factorOutMinusSign "$n")
-        isNegative=$?
+        # Factor out the negative sign if it is present
+        if [[ "$n" =~ ^- ]]; then
+            isNegative=${__shellfloat_true}
+            n=${n:1}
+        fi
 
-        echo $n
+        _shellfloat_setReturnValue $n
         return $((numericType|isNegative))
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
         numericType=${__shellfloat_numericTypes[DECIMAL]}
 
-        # Strip off negative sign (if present) and track it
-        n=$(_shellfloat_factorOutMinusSign "$n")
-        isNegative=$?
+        # Factor out the negative sign if it is present
+        if [[ "$n" =~ ^- ]]; then
+            isNegative=${__shellfloat_true}
+            n=${n:1}
+        fi
 
-        echo ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
+        _shellfloat_setReturnValues ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
         return $((numericType|isNegative))
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
@@ -112,53 +164,77 @@ function _shellfloat_validateAndParse()
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
-        # Significand may be either integer or decimal:  1 <= |signif| < 10
-        if [[ "$significand" =~ ^[-]?([1-9]\.)?[0-9]+$ ]]; then
-            # Break down and store the significand
-            declare -a significandParts
-            significandParts=($(_shellfloat_validateAndParse "$significand"))
-            declare sigRet=$?
-            local isSigNegative=$(($sigRet & $__shellfloat_true))
+        if [[ "$significand" =~ ^[-]?([0-9]+)(\.([0-9]+))?$ ]]; then
+            sigInteger=${BASH_REMATCH[1]};   sigIntLength=${#sigInteger}
+            sigFraction=${BASH_REMATCH[3]};  sigFracLength=${#sigFraction}
 
-            # Exponent must be an integer with optional sign prefix
-            if [[ "$exponent" =~ ^[-+]?[0-9]+$ ]]; then
-                local isExpNegative=${__shellfloat_false}
-                if [[ "$exponent" =~ ^[-] ]]; then
-                    isExpNegative=${__shellfloat_true}
-                    exponent=${exponent:1}
+            if [[ "$n" =~ ^[-] ]]; then
+                isNegative=${__shellfloat_true}
+                n=${n:1}
+            fi
+
+            # "Absorb" the exponent into the number and represent it as an
+            # ordinary integer or decimal. IOW, realign the integer
+            # and fractional parts. Separate with a space.
+            if ((exponent > 0)); then
+                ((zeroLength = exponent - sigFracLength))
+                if ((zeroLength > 0)); then
+                    printf -v zeros "%0*s" $zeroLength 0
+                    n=${sigInteger}${sigFraction}${zeros}
+                    numericType=${__shellfloat_numericTypes[INTEGER]}
+                elif ((zeroLength < 0)); then
+                    n=${sigInteger}${sigFraction:0:exponent}" "${sigFraction:exponent}
+                    numericType=${__shellfloat_numericTypes[DECIMAL]}
                 else
-                    exponent=$((exponent))    # Strip the + sign, if any
+                    n=${sigInteger}${sigFraction}
+                    numericType=${__shellfloat_numericTypes[INTEGER]}
                 fi
+                _shellfloat_setReturnValues ${n}
+                return $((numericType|isNegative))
 
-                numericType=${__shellfloat_numericTypes[SCIENTIFIC]}
-                isNegative=$((isSigNegative<<1 | isExpNegative))
-                echo ${significandParts[0]} ${significandParts[1]} $exponent
+            elif ((exponent < 0)); then
+                ((zeroLength = -exponent - sigFracLength))
+                if ((zeroLength > 0)); then
+                    printf -v zeros "%0*s" $zeroLength 0
+                    n="0 "${zeros}${sigInteger}${sigFraction}
+                    numericType=${__shellfloat_numericTypes[DECIMAL]}
+                elif ((zeroLength < 0)); then
+                    n=${sigInteger:0:-zeroLength}" "${sigInteger:(-zeroLength)}${sigFraction}
+                    numericType=${__shellfloat_numericTypes[DECIMAL]}
+                else
+                    n="0 "${sigInteger}${sigFraction}
+                    numericType=${__shellfloat_numericTypes[DECIMAL]}
+                fi
+                __shellfloat_setReturnValues ${n}
+                return $((numericType|isNegative))
+
+            else
+                # exponent == 0 means the number is already aligned as desired
+                n=${sigInteger}" "${sigFraction}
+                __shellfloat_setReturnValues ${n}
+                numericType=${__shellfloat_numericTypes[DECIMAL]}
                 return $((numericType|isNegative))
             fi
+        else
+            _shellfloat_getReturnCode ILLEGAL_NUMBER
+            returnCode=$?
+            _shellfloat_setReturnValues ""
+            return $returnCode
         fi
 
     # Reject everything else
     else
         _shellfloat_getReturnCode ILLEGAL_NUMBER
         returnCode=$?
-        echo ""
+        _shellfloat_setReturnValues ""
         return $returnCode
     fi
 }
 
-function _shellfloat_factorOutMinusSign()
-{
-    local isNegative=$__shellfloat_false
 
-    if [[ "${1:0:1}" == '-' ]]; then
-        n=${n:1}
-        isNegative=${__shellfloat_true}
-    fi
-
-    echo "$n"
-    return $isNegative
-}
-
+################################################################################
+# Validate and parse arguments to the main arithmetic routines
+################################################################################
 
 function _shellfloat_add()
 {
@@ -215,8 +291,7 @@ function _shellfloat_add()
     local integerPart2=${numericParts[0]}
     local fractionalPart2=${numericParts[1]}
 
-    if [[ $type1 == ${__shellfloat_numericTypes[SCIENTIFIC]} \
-       || $type2 == ${__shellfloat_numericTypes[SCIENTIFIC]} ]]; then
+    if [[ $type2 == ${__shellfloat_numericTypes[SCIENTIFIC]} ]]; then
         echo Scientific notation not yet implemented.
         return 0
     fi
