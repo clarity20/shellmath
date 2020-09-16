@@ -164,25 +164,29 @@ function _shellfloat_validateAndParse()
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
+        # Validate the significand: optional sign, integer part,
+        # optional decimal point and fractional part
         if [[ "$significand" =~ ^[-]?([0-9]+)(\.([0-9]+))?$ ]]; then
-            sigInteger=${BASH_REMATCH[1]};   sigIntLength=${#sigInteger}
-            sigFraction=${BASH_REMATCH[3]};  sigFracLength=${#sigFraction}
 
-            if [[ "$n" =~ ^[-] ]]; then
+            # Separate the integer and fractional parts
+            local sigInteger=${BASH_REMATCH[1]}   sigIntLength=${#sigInteger}
+            local sigFraction=${BASH_REMATCH[3]}  sigFracLength=${#sigFraction}
+
+            if [[ "$n" =~ ^- ]]; then
                 isNegative=${__shellfloat_true}
                 n=${n:1}
             fi
 
-            # "Absorb" the exponent into the number and represent it as an
-            # ordinary integer or decimal. IOW, realign the integer
-            # and fractional parts. Separate with a space.
+            # Rewrite the scientifically-notated number in ordinary decimal notation.
+            # IOW, realign the integer and fractional parts. Separate with a space
+            # so they can be returned as two separate values
             if ((exponent > 0)); then
-                ((zeroLength = exponent - sigFracLength))
-                if ((zeroLength > 0)); then
-                    printf -v zeros "%0*s" $zeroLength 0
+                ((zeroCount = exponent - sigFracLength))
+                if ((zeroCount > 0)); then
+                    printf -v zeros "%0*s" $zeroCount 0
                     n=${sigInteger}${sigFraction}${zeros}
                     numericType=${__shellfloat_numericTypes[INTEGER]}
-                elif ((zeroLength < 0)); then
+                elif ((zeroCount < 0)); then
                     n=${sigInteger}${sigFraction:0:exponent}" "${sigFraction:exponent}
                     numericType=${__shellfloat_numericTypes[DECIMAL]}
                 else
@@ -193,28 +197,30 @@ function _shellfloat_validateAndParse()
                 return $((numericType|isNegative))
 
             elif ((exponent < 0)); then
-                ((zeroLength = -exponent - sigFracLength))
-                if ((zeroLength > 0)); then
-                    printf -v zeros "%0*s" $zeroLength 0
+                ((zeroCount = -exponent - sigIntLength))
+                if ((zeroCount > 0)); then
+                    printf -v zeros "%0*s" $zeroCount 0
                     n="0 "${zeros}${sigInteger}${sigFraction}
                     numericType=${__shellfloat_numericTypes[DECIMAL]}
-                elif ((zeroLength < 0)); then
-                    n=${sigInteger:0:-zeroLength}" "${sigInteger:(-zeroLength)}${sigFraction}
+                elif ((zeroCount < 0)); then
+                    n=${sigInteger:0:-zeroCount}" "${sigInteger:(-zeroCount)}${sigFraction}
                     numericType=${__shellfloat_numericTypes[DECIMAL]}
                 else
                     n="0 "${sigInteger}${sigFraction}
                     numericType=${__shellfloat_numericTypes[DECIMAL]}
                 fi
-                __shellfloat_setReturnValues ${n}
+                _shellfloat_setReturnValues ${n}
                 return $((numericType|isNegative))
 
             else
                 # exponent == 0 means the number is already aligned as desired
                 n=${sigInteger}" "${sigFraction}
-                __shellfloat_setReturnValues ${n}
+                _shellfloat_setReturnValues ${n}
                 numericType=${__shellfloat_numericTypes[DECIMAL]}
                 return $((numericType|isNegative))
             fi
+
+        # Reject "pseudo-scientific numbers" xxx[Ee]yyy where xxx, yyy are invalid as numbers
         else
             _shellfloat_getReturnCode ILLEGAL_NUMBER
             returnCode=$?
@@ -244,6 +250,7 @@ function _shellfloat_add()
     declare -i flags
     local sign
 
+    # Set program constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
     _shellfloat_getReturnCode "ILLEGAL_NUMBER"
@@ -254,6 +261,7 @@ function _shellfloat_add()
         return $SUCCESS
     fi
 
+    # Check the first argument
     numericParts=($(_shellfloat_validateAndParse "$n1"))
     flags=$?
     if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
@@ -261,6 +269,7 @@ function _shellfloat_add()
         return $?
     fi
 
+    # Handle corner cases where argument count is not 2
     if [[ $# -eq 1 ]]; then
         echo $n1
         return $SUCCESS
@@ -274,11 +283,13 @@ function _shellfloat_add()
         fi
     fi
 
+    # Register important information about the first value
     declare isNegative1=$((flags & __shellfloat_true))
     declare type1=$((flags & __shellfloat_allTypes))
     local integerPart1=${numericParts[0]}
     local fractionalPart1=${numericParts[1]}
 
+    # Check the second argument
     numericParts=($(_shellfloat_validateAndParse "$n2"))
     flags=$?
     if [[ $flags == $ILLEGAL_NUMBER ]]; then
@@ -286,17 +297,13 @@ function _shellfloat_add()
         return $?
     fi
 
+    # Register important information about the second value
     declare isNegative2=$((flags & __shellfloat_true))
     declare type2=$((flags & __shellfloat_allTypes))
     local integerPart2=${numericParts[0]}
     local fractionalPart2=${numericParts[1]}
 
-    if [[ $type2 == ${__shellfloat_numericTypes[SCIENTIFIC]} ]]; then
-        echo Scientific notation not yet implemented.
-        return 0
-    fi
-
-    # Right-pad the fractional parts with zeros to align by place value,
+    # Right-pad the fractional parts of both values with zeros to align by place value,
     # using string formatting techniques to avoid mathematical side-effects
     declare fractionalLen1=${#fractionalPart1}
     declare fractionalLen2=${#fractionalPart2}
