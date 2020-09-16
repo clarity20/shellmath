@@ -101,7 +101,7 @@ function _shellfloat_setReturnValues()
 function _shellfloat_getReturnValues()
 {
     declare -i _i
-    local _variableName _value _storageCell
+    local _variableName _valueInStorage _storageCell
 
     for ((_i=1; _i<=$#; _i++)); do
         _variableName=${!_i}
@@ -148,6 +148,8 @@ function _shellfloat_validateAndParse()
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
+        local integerPart=${BASH_REMATCH[1]}
+        local fractionalPart=${BASH_REMATCH[2]}
         numericType=${__shellfloat_numericTypes[DECIMAL]}
 
         # Factor out the negative sign if it is present
@@ -156,7 +158,7 @@ function _shellfloat_validateAndParse()
             n=${n:1}
         fi
 
-        _shellfloat_setReturnValues ${BASH_REMATCH[1]} ${BASH_REMATCH[2]}
+        _shellfloat_setReturnValues $integerPart $fractionalPart
         return $((numericType|isNegative))
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
@@ -239,13 +241,14 @@ function _shellfloat_validateAndParse()
 
 
 ################################################################################
-# Validate and parse arguments to the main arithmetic routines
+# The main arithmetic routines
 ################################################################################
 
 function _shellfloat_add()
 {
     local n1="$1"
     local n2="$2"
+    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
     declare -a numericParts
     declare -i flags
     local sign
@@ -262,8 +265,9 @@ function _shellfloat_add()
     fi
 
     # Check the first argument
-    numericParts=($(_shellfloat_validateAndParse "$n1"))
-    flags=$?
+    _shellfloat_validateAndParse "$n1";  flags=$?
+    _shellfloat_getReturnValues  integerPart1  fractionalPart1
+
     if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
         _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
         return $?
@@ -286,12 +290,11 @@ function _shellfloat_add()
     # Register important information about the first value
     declare isNegative1=$((flags & __shellfloat_true))
     declare type1=$((flags & __shellfloat_allTypes))
-    local integerPart1=${numericParts[0]}
-    local fractionalPart1=${numericParts[1]}
 
     # Check the second argument
-    numericParts=($(_shellfloat_validateAndParse "$n2"))
-    flags=$?
+    _shellfloat_validateAndParse "$n2"; flags=$?
+    _shellfloat_getReturnValues  integerPart2  fractionalPart2
+
     if [[ $flags == $ILLEGAL_NUMBER ]]; then
         _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
         return $?
@@ -300,8 +303,6 @@ function _shellfloat_add()
     # Register important information about the second value
     declare isNegative2=$((flags & __shellfloat_true))
     declare type2=$((flags & __shellfloat_allTypes))
-    local integerPart2=${numericParts[0]}
-    local fractionalPart2=${numericParts[1]}
 
     # Right-pad the fractional parts of both values with zeros to align by place value,
     # using string formatting techniques to avoid mathematical side-effects
@@ -388,13 +389,38 @@ function _shellfloat_add()
         sum=$integerSum
     fi
 
-    echo $sum
+    # If running within the test harness, pass the sum
+    # back to the harness, otherwise print it out
+    if ((__shellfloat_isTesting == __shellfloat_true)); then
+        _shellfloat_setReturnValue $sum
+    else
+        echo $sum
+    fi
+
     return $SUCCESS
 }
 
+
 function _shellfloat_subtract()
 {
-    return 0
+    local n1="$1"
+    local n2="$2"
+
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: $FUNCNAME  subtrahend  minuend"
+        return $SUCCESS
+    fi
+
+    # Symbolically negate the second argument
+    if [[ $n2 =~ ^- ]]; then
+        n2=${n2:1}
+    else
+        n2="-"$n2
+    fi
+
+    _shellfloat_add "$n1" "$n2"
+
+    return $?
 }
 
 function _shellfloat_multiply()

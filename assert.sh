@@ -45,8 +45,10 @@ function _shellfloat_assert_functionReturn()
 
     args=("$@")
 
+    local __shellfloat_isTesting=${__shellfloat_true}
     "$func" "${args[@]}"
     returnCode=$?
+    __shellfloat_isTesting=${__shellfloat_false}
 
     # Fetch the return values. Their number will vary.
     declare -a returns
