@@ -258,6 +258,7 @@ function _shellfloat_add()
     declare -ri SUCCESS=$?
     _shellfloat_getReturnCode "ILLEGAL_NUMBER"
     declare -ri ILLEGAL_NUMBER=$?
+    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: $FUNCNAME  addend_1  addend_2"
@@ -273,23 +274,29 @@ function _shellfloat_add()
         return $?
     fi
 
-    # Handle corner cases where argument count is not 2
-    if [[ $# -eq 1 ]]; then
-        echo $n1
-        return $SUCCESS
-    elif [[ $# -gt 2 ]]; then
-        shift
-        n2=$(_shellfloat_add "$@")
-        local recursiveReturn=$?
-        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
-            echo $n2
-            return $recursiveReturn
-        fi
-    fi
-
     # Register important information about the first value
     declare isNegative1=$((flags & __shellfloat_true))
     declare type1=$((flags & __shellfloat_allTypes))
+
+    # Handle corner cases where argument count is not 2
+    if [[ $# -eq 1 ]]; then
+        # Note the value as-is and return
+        if ((isTesting)); then _shellfloat_setReturnValue $n1; else echo $n1; fi
+        return $SUCCESS
+    elif [[ $# -gt 2 ]]; then
+        # Recurse on the trailing arguments
+        shift
+        if ((isTesting)); then
+            _shellfloat_add "$@";    _shellfloat_getReturnValue n2
+        else
+            n2=$(_shellfloat_add "$@")
+        fi
+        local recursiveReturn=$?
+        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
+            if ((isTesting)); then _shellfloat_setReturnValue $n2; else echo $n2; fi
+            return $recursiveReturn
+        fi
+    fi
 
     # Check the second argument
     _shellfloat_validateAndParse "$n2"; flags=$?
@@ -304,11 +311,11 @@ function _shellfloat_add()
     declare isNegative2=$((flags & __shellfloat_true))
     declare type2=$((flags & __shellfloat_allTypes))
 
-    # Right-pad the fractional parts of both values with zeros to align by place value,
-    # using string formatting techniques to avoid mathematical side-effects
+    # Right-pad both fractional parts with zeros to the same length
     declare fractionalLen1=${#fractionalPart1}
     declare fractionalLen2=${#fractionalPart2}
     if ((fractionalLen1 > fractionalLen2)); then
+        # Use printf to zero-pad. This avoids mathematical side effects.
         printf -v fractionalPart2 %-*s $fractionalLen1 $fractionalPart2
         fractionalPart2=${fractionalPart2// /0}
     elif ((fractionalLen2 > fractionalLen1)); then
@@ -356,8 +363,13 @@ function _shellfloat_add()
     # Restore any leading zeroes that were lost when adding
     if ((unsignedFracSumLength < unsignedFracLength)); then
         local lengthDiff=$((unsignedFracLength - unsignedFracSumLength))
-        fractionalSum=$((10**lengthDiff))$fractionalSum
-        fractionalSum=${fractionalSum#1}
+        local zeroPrefix
+        printf -v zeroPrefix "%0*s" $lengthDiff 0
+        if ((fractionalSum < 0)); then
+            fractionalSum="-"${zeroPrefix}${fractionalSum:1}
+        else
+            fractionalSum=${zeroPrefix}${fractionalSum}
+        fi
     fi
 
     # Carry a digit from fraction to integer if required
@@ -372,17 +384,17 @@ function _shellfloat_add()
     # Resolve sign discrepancies between the partial sums
     if ((integerSum < 0 && fractionalSum > 0)); then
         ((integerSum += 1))
-        ((fractionalSum = 10**${#fractionalSum} - fractionalSum))
+        ((fractionalSum = 10**unsignedFracSumLength - fractionalSum))
     elif ((integerSum > 0 && fractionalSum < 0)); then
         ((integerSum -= 1))
-        ((fractionalSum = 10**${#fractionalSum} + fractionalSum))
+        ((fractionalSum = 10**unsignedFracSumLength + fractionalSum))
     elif ((integerSum == 0 && fractionalSum < 0)); then
         integerSum="-"$integerSum
         ((fractionalSum *= -1))
     fi
 
     # Touch up the numbers for display
-    if ((fractionalSum < 0)); then ((fractionalSum*=-1)); fi
+    if ((fractionalSum < 0)); then fractionalSum=${fractionalSum:1}; fi
     if ((fractionalSum)); then
         printf -v sum "%s.%s" $integerSum $fractionalSum
     else
@@ -391,7 +403,7 @@ function _shellfloat_add()
 
     # If running within the test harness, pass the sum
     # back to the harness, otherwise print it out
-    if ((__shellfloat_isTesting == __shellfloat_true)); then
+    if ((isTesting)); then
         _shellfloat_setReturnValue $sum
     else
         echo $sum
