@@ -171,8 +171,10 @@ function _shellfloat_validateAndParse()
         if [[ "$significand" =~ ^[-]?([0-9]+)(\.([0-9]+))?$ ]]; then
 
             # Separate the integer and fractional parts
-            local sigInteger=${BASH_REMATCH[1]}   sigIntLength=${#sigInteger}
-            local sigFraction=${BASH_REMATCH[3]}  sigFracLength=${#sigFraction}
+            local sigInteger=${BASH_REMATCH[1]}
+            local sigIntLength=${#sigInteger}
+            local sigFraction=${BASH_REMATCH[3]}
+            local sigFracLength=${#sigFraction}
 
             if [[ "$n" =~ ^- ]]; then
                 isNegative=${__shellfloat_true}
