@@ -336,14 +336,15 @@ function _shellfloat_add()
         integerPart2="-"$integerPart2
     fi
 
-    declare -i integerSum=0
+    declare integerSum=0      # To allow string manipulation, do not declare "-i"
+    declare fractionalSum=0
+
     ((integerSum = integerPart1+integerPart2))
 
     # Summing the fractional parts is tricky: We need to override the shell's
     # default interpretation of leading zeros, but the operator for doing this
     # (the "10#" operator) cannot work directly with negative numbers. So we
     # break it all down.
-    declare fractionalSum=0    # "-i" flag would prevent string manipulation
     if ((isNegative1)); then
         ((fractionalSum += (-1) * 10#${fractionalPart1:1}))
     else
