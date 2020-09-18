@@ -439,7 +439,86 @@ function _shellfloat_subtract()
 
 function _shellfloat_multiply()
 {
-    return 0
+    local n1="$1"
+    local n2="$2"
+    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+
+    # Set program constants
+    _shellfloat_getReturnCode "SUCCESS"
+    declare -ri SUCCESS=$?
+    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+
+    # Handle corner cases where argument count is not 2
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: $FUNCNAME  factor_1  factor_2"
+        return $SUCCESS
+    elif [[ $# -eq 1 ]]; then
+        # Note the value as-is and return
+        if ((isTesting)); then _shellfloat_setReturnValue $n1; else echo $n1; fi
+        return $SUCCESS
+    elif [[ $# -gt 2 ]]; then
+        # Recurse on the trailing arguments
+        shift
+        _shellfloat_multiply "$@"
+        local recursiveReturn=$?
+        _shellfloat_getReturnValue n2       # use n2 as an accumulator
+        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
+            _shellfloat_setReturnValue $n2
+            return $recursiveReturn
+        fi
+    fi
+
+    # Check and break down the first argument
+    _shellfloat_checkArgument "$n1"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1
+
+    # Check and break down the second argument
+    _shellfloat_checkArgument "$n2"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
+
+    # Components of the product per the distributive law
+    declare intProduct floatProduct crossProduct1 crossProduct2
+    # Widths of the decimal parts
+    declare floatWidth fractionalWidth1 fractionalWidth2
+
+    ((intProduct = integerPart1 * integerPart2))
+    fractionalWidth1=${#fractionalPart1}
+    fractionalWidth2=${#fractionalPart2}
+    ((floatWidth = fractionalWidth1 + fractionalWidth2))
+    ((floatProduct = 10#$fractionalPart1 * 10#$fractionalPart2))
+    if ((${#floatProduct} < floatWidth)); then
+        printf -v floatProduct "%0*s" $floatWidth $floatProduct
+    fi
+    ((crossProduct1 = integerPart1 * 10#$fractionalPart2))
+    ((crossProduct2 = integerPart2 * 10#$fractionalPart1))
+
+    # Rewrite the cross products as decimals so we can shellfloat_add() them
+    if ((fractionalWidth2 <= ${#crossProduct1})); then
+        local crossInt1=${crossProduct1:0:(-$fractionalWidth2)}
+        local crossFloat1=${crossProduct1:(-$fractionalWidth2)}
+        crossProduct1=${crossInt1}"."${crossFloat1}
+    else
+        printf -v crossProduct1 "0.%0*s" $fractionalWidth2 $crossProduct1
+    fi
+    if ((fractionalWidth1 <= ${#crossProduct2})); then
+        local crossInt2=${crossProduct2:0:(-$fractionalWidth1)}
+        local crossFloat2=${crossProduct2:(-$fractionalWidth1)}
+        crossProduct2=${crossInt2}"."${crossFloat2}
+    else
+        printf -v crossProduct2 "0.%0*s" $fractionalWidth1 $crossProduct2
+    fi
+
+    # Combine the parts
+    _shellfloat_add "$crossProduct1" "$crossProduct2"
+
+                ###### ETC.
+
+
+    # Determine the sign of the product
+
+    return $SUCCESS
 }
 
 function _shellfloat_divide()
