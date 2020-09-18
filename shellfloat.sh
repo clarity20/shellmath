@@ -80,8 +80,8 @@ function _shellfloat_handleError()
 # Simulate pass-and-return by reference using a secret global storage array
 ################################################################################
 
-declare -a _shellfloat_storage
-declare -ir _shellfloat_storageSpace=8
+declare -a __shellfloat_storage
+declare -ir __shellfloat_storageSpace=8
 
 function _shellfloat_setReturnValues()
 {
@@ -89,12 +89,12 @@ function _shellfloat_setReturnValues()
     local _givenValue _storageCell
 
     for ((_i=1; _i<=$#; _i++)); do
-        _storageCell="_shellfloat_storage["$_i"]"
+        _storageCell="__shellfloat_storage["$_i"]"
         _givenValue=${!_i}
         eval $_storageCell='$_givenValue'
     done
-    for ((; _i<=_shellfloat_storageSpace; _i++)); do
-        unset _shellfloat_storage[$_i]
+    for ((; _i<=__shellfloat_storageSpace; _i++)); do
+        unset __shellfloat_storage[$_i]
     done
 }
 
@@ -105,7 +105,7 @@ function _shellfloat_getReturnValues()
 
     for ((_i=1; _i<=$#; _i++)); do
         _variableName=${!_i}
-        _storageCell="_shellfloat_storage["$_i"]"
+        _storageCell="__shellfloat_storage["$_i"]"
         _valueInStorage=${!_storageCell}
         if [[ -n $_valueInStorage ]]; then
             eval $_variableName='$_valueInStorage'
@@ -242,6 +242,31 @@ function _shellfloat_validateAndParse()
 }
 
 
+function _shellfloat_checkArgument()
+{
+    local arg="$1"
+    local integerPart fractionalPart
+    local flags isNegative type
+
+    _shellfloat_getReturnCode "ILLEGAL_NUMBER"
+    declare -ri ILLEGAL_NUMBER=$?
+
+    _shellfloat_validateAndParse "$arg";  flags=$?
+    _shellfloat_getReturnValues  integerPart  fractionalPart
+
+    if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
+
+    # Register important information about the first value
+    isNegative=$((flags & __shellfloat_true))
+    type=$((flags & __shellfloat_allTypes))
+
+    _shellfloat_setReturnValues "$integerPart" "$fractionalPart" $isNegative $type
+    return $SUCCESS
+}
+
 ################################################################################
 # The main arithmetic routines
 ################################################################################
@@ -251,67 +276,41 @@ function _shellfloat_add()
     local n1="$1"
     local n2="$2"
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
-    declare -a numericParts
-    declare -i flags
-    local sign
 
     # Set program constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
-    _shellfloat_getReturnCode "ILLEGAL_NUMBER"
-    declare -ri ILLEGAL_NUMBER=$?
     local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
 
+    # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
         echo "Usage: $FUNCNAME  addend_1  addend_2"
         return $SUCCESS
-    fi
-
-    # Check the first argument
-    _shellfloat_validateAndParse "$n1";  flags=$?
-    _shellfloat_getReturnValues  integerPart1  fractionalPart1
-
-    if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n1"
-        return $?
-    fi
-
-    # Register important information about the first value
-    declare isNegative1=$((flags & __shellfloat_true))
-    declare type1=$((flags & __shellfloat_allTypes))
-
-    # Handle corner cases where argument count is not 2
-    if [[ $# -eq 1 ]]; then
+    elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         if ((isTesting)); then _shellfloat_setReturnValue $n1; else echo $n1; fi
         return $SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
         shift
-        if ((isTesting)); then
-            _shellfloat_add "$@";    _shellfloat_getReturnValue n2
-        else
-            n2=$(_shellfloat_add "$@")
-        fi
+        _shellfloat_add "$@"
         local recursiveReturn=$?
+        _shellfloat_getReturnValue n2       # use n2 as an accumulator
         if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
-            if ((isTesting)); then _shellfloat_setReturnValue $n2; else echo $n2; fi
+            _shellfloat_setReturnValue $n2
             return $recursiveReturn
         fi
     fi
 
-    # Check the second argument
-    _shellfloat_validateAndParse "$n2"; flags=$?
-    _shellfloat_getReturnValues  integerPart2  fractionalPart2
+    # Check and break down the first argument
+    _shellfloat_checkArgument "$n1"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1
 
-    if [[ $flags == $ILLEGAL_NUMBER ]]; then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$n2"
-        return $?
-    fi
-
-    # Register important information about the second value
-    declare isNegative2=$((flags & __shellfloat_true))
-    declare type2=$((flags & __shellfloat_allTypes))
+    # Check and break down the second argument
+    _shellfloat_checkArgument "$n2"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
 
     # Right-pad both fractional parts with zeros to the same length
     declare fractionalLen1=${#fractionalPart1}
