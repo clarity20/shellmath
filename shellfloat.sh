@@ -143,12 +143,12 @@ function _shellfloat_validateAndParse()
             n=${n:1}
         fi
 
-        _shellfloat_setReturnValue $n
+        _shellfloat_setReturnValues $n 0
         return $((numericType|isNegative))
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
-        local integerPart=${BASH_REMATCH[1]}
+        local integerPart=${BASH_REMATCH[1]:-0}
         local fractionalPart=${BASH_REMATCH[2]}
         numericType=${__shellfloat_numericTypes[DECIMAL]}
 
@@ -315,6 +315,17 @@ function _shellfloat_add()
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
     _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
 
+    # Quick add & return for integer adds
+    if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
+        local sum=$((integerPart1 + integerPart2))
+        _shellfloat_setReturnValue $sum
+        if ((! (isTesting || isSubcall) )); then
+            echo $sum
+        fi
+
+        return $SUCCESS
+    fi
+
     # Right-pad both fractional parts with zeros to the same length
     declare fractionalLen1=${#fractionalPart1}
     declare fractionalLen2=${#fractionalPart2}
@@ -416,6 +427,7 @@ function _shellfloat_add()
     return $SUCCESS
 }
 
+################################################################################
 
 function _shellfloat_subtract()
 {
@@ -445,6 +457,7 @@ function _shellfloat_subtract()
     return $?
 }
 
+################################################################################
 
 function _shellfloat_multiply()
 {
@@ -528,7 +541,6 @@ function _shellfloat_multiply()
     _shellfloat_add  $innerProduct1  $innerProduct2
     _shellfloat_getReturnValue innerSum
     outerSum=${intProduct}"."${floatProduct}
-    _shellfloat_getReturnValue outerSum
     _shellfloat_add  $innerSum  $outerSum
     _shellfloat_getReturnValue product
 
@@ -545,6 +557,8 @@ function _shellfloat_multiply()
 
     return $SUCCESS
 }
+
+################################################################################
 
 function _shellfloat_divide()
 {
