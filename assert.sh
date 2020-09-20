@@ -14,7 +14,7 @@ function _shellfloat_assert_returnString()
 function _shellfloat_assert_equal()
 {
     if [[ $# != 2 ]]; then
-        echo USAGE: "$FUNCNAME" value1 value2
+        echo USAGE: "${FUNCNAME[0]}" value1 value2
         echo Two input arguments required.
     fi
 }
@@ -26,7 +26,7 @@ function _shellfloat_assert_equal()
 function _shellfloat_assert_functionReturn()
 {
     if [[ $# -lt 2 ]]; then
-        echo 'USAGE: "$FUNCNAME" [-c] returnStringOrCode functionName [ functionArgs ... ]'
+        echo 'USAGE: "${FUNCNAME[0]}" [-c] returnStringOrCode functionName [ functionArgs ... ]'
         echo "    By default, asserts against the string output by the function."
         echo "    Use -c to assert against the numeric return code instead."
         return ${__shellfloat_returnCodes[FAIL]}
