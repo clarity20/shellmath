@@ -277,18 +277,21 @@ function _shellfloat_add()
     local n2="$2"
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
 
-    # Set program constants
+    # Set constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
     local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+    local isSubcall=${__shellfloat_false}       # Is the caller itself an arithmetic function?
+    [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]] && (( isSubcall = __shellfloat_true ))
 
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
-        echo "Usage: $FUNCNAME  addend_1  addend_2"
+        echo "Usage: ${FUNCNAME[0]}  addend_1  addend_2"
         return $SUCCESS
     elif [[ $# -eq 1 ]]; then
-        # Note the value as-is and return
-        if ((isTesting)); then _shellfloat_setReturnValue $n1; else echo $n1; fi
+        # Note the result as-is, print if running "normally", and return
+        _shellfloat_setReturnValue $n1
+        if (( !(isTesting || isSubcall) )); then echo $n1; fi
         return $SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
@@ -396,6 +399,7 @@ function _shellfloat_add()
     fi
 
     # Touch up the numbers for display
+    local sum
     if ((fractionalSum < 0)); then fractionalSum=${fractionalSum:1}; fi
     if ((fractionalSum)); then
         printf -v sum "%s.%s" $integerSum $fractionalSum
@@ -403,11 +407,9 @@ function _shellfloat_add()
         sum=$integerSum
     fi
 
-    # If running within the test harness, pass the sum
-    # back to the harness, otherwise print it out
-    if ((isTesting)); then
-        _shellfloat_setReturnValue $sum
-    else
+    # Note the result, print if running "normally", and return
+    _shellfloat_setReturnValue $sum
+    if ((! (isTesting || isSubcall) )); then
         echo $sum
     fi
 
@@ -421,7 +423,7 @@ function _shellfloat_subtract()
     local n2="$2"
 
     if [[ $# -eq 0 ]]; then
-        echo "Usage: $FUNCNAME  subtrahend  minuend"
+        echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
         return $SUCCESS
     fi
 
@@ -432,10 +434,17 @@ function _shellfloat_subtract()
         n2="-"$n2
     fi
 
+    # Note the result, print if running "normally", and return
+    local difference
     _shellfloat_add "$n1" "$n2"
+    _shellfloat_getReturnValue difference
+    if ((!isTesting)); then
+        echo $difference
+    fi
 
     return $?
 }
+
 
 function _shellfloat_multiply()
 {
@@ -443,18 +452,19 @@ function _shellfloat_multiply()
     local n2="$2"
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
 
-    # Set program constants
+    # Set constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
     local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
 
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
-        echo "Usage: $FUNCNAME  factor_1  factor_2"
+        echo "Usage: ${FUNCNAME[0]}  factor_1  factor_2"
         return $SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
-        if ((isTesting)); then _shellfloat_setReturnValue $n1; else echo $n1; fi
+        _shellfloat_setReturnValue $n1
+        if ((!isTesting)); then echo $n1; fi
         return $SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
@@ -478,11 +488,12 @@ function _shellfloat_multiply()
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
     _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
 
-    # Components of the product per the distributive law
-    declare intProduct floatProduct crossProduct1 crossProduct2
+    # Declarations: four components of the product per the distributive law
+    declare intProduct floatProduct innerProduct1 innerProduct2
     # Widths of the decimal parts
     declare floatWidth fractionalWidth1 fractionalWidth2
 
+    # Compute the integer and floating-point components
     ((intProduct = integerPart1 * integerPart2))
     fractionalWidth1=${#fractionalPart1}
     fractionalWidth2=${#fractionalPart2}
@@ -491,32 +502,46 @@ function _shellfloat_multiply()
     if ((${#floatProduct} < floatWidth)); then
         printf -v floatProduct "%0*s" $floatWidth $floatProduct
     fi
-    ((crossProduct1 = integerPart1 * 10#$fractionalPart2))
-    ((crossProduct2 = integerPart2 * 10#$fractionalPart1))
 
-    # Rewrite the cross products as decimals so we can shellfloat_add() them
-    if ((fractionalWidth2 <= ${#crossProduct1})); then
-        local crossInt1=${crossProduct1:0:(-$fractionalWidth2)}
-        local crossFloat1=${crossProduct1:(-$fractionalWidth2)}
-        crossProduct1=${crossInt1}"."${crossFloat1}
+    # Compute the inner products: First integer-multiply, then rescale
+    ((innerProduct1 = integerPart1 * 10#$fractionalPart2))
+    ((innerProduct2 = integerPart2 * 10#$fractionalPart1))
+
+    # Rescale the inner products as decimals so we can shellfloat_add() them
+    if ((fractionalWidth2 <= ${#innerProduct1})); then
+        local innerInt1=${innerProduct1:0:(-$fractionalWidth2)}
+        local innerFloat1=${innerProduct1:(-$fractionalWidth2)}
+        innerProduct1=${innerInt1}"."${innerFloat1}
     else
-        printf -v crossProduct1 "0.%0*s" $fractionalWidth2 $crossProduct1
+        printf -v innerProduct1 "0.%0*s" $fractionalWidth2 $innerProduct1
     fi
-    if ((fractionalWidth1 <= ${#crossProduct2})); then
-        local crossInt2=${crossProduct2:0:(-$fractionalWidth1)}
-        local crossFloat2=${crossProduct2:(-$fractionalWidth1)}
-        crossProduct2=${crossInt2}"."${crossFloat2}
+    if ((fractionalWidth1 <= ${#innerProduct2})); then
+        local innerInt2=${innerProduct2:0:(-$fractionalWidth1)}
+        local innerFloat2=${innerProduct2:(-$fractionalWidth1)}
+        innerProduct2=${innerInt2}"."${innerFloat2}
     else
-        printf -v crossProduct2 "0.%0*s" $fractionalWidth1 $crossProduct2
+        printf -v innerProduct2 "0.%0*s" $fractionalWidth1 $innerProduct2
     fi
 
-    # Combine the parts
-    _shellfloat_add "$crossProduct1" "$crossProduct2"
-
-                ###### ETC.
-
+    # Combine the distributed parts
+    local innerSum outerSum product
+    _shellfloat_add  $innerProduct1  $innerProduct2
+    _shellfloat_getReturnValue innerSum
+    outerSum=${intProduct}"."${floatProduct}
+    _shellfloat_getReturnValue outerSum
+    _shellfloat_add  $innerSum  $outerSum
+    _shellfloat_getReturnValue product
 
     # Determine the sign of the product
+    if ((isNegative1 != isNegative2)); then
+        product="-"$product
+    fi
+
+    # Note the result, print if running "normally", and return
+    _shellfloat_setReturnValue $product
+    if ((!isTesting)); then
+        echo $product
+    fi
 
     return $SUCCESS
 }
