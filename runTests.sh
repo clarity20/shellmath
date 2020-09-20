@@ -96,7 +96,7 @@ function _shellfloat_runTests()
 
         # Expand the next word to a shellfloat function name
         words[nextWord]=_shellfloat_${words[nextWord]}
-        if ! type -t "${words[nextWord]}" 2>/dev/null; then
+        if ! type -t "${words[nextWord]}" >/dev/null; then
             echo FAIL line $lineNumber: "${words[nextWord]}" is not a testable function
             return 3
         fi
