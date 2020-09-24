@@ -97,7 +97,7 @@ function _shellfloat_runTests()
         # Expand the next word to a shellfloat function name
         words[nextWord]=_shellfloat_${words[nextWord]}
         if ! type -t "${words[nextWord]}" >/dev/null; then
-            echo FAIL line $lineNumber: "${words[nextWord]}" is not a testable function
+            echo "FAIL line $lineNumber: Syntax error. Required: String|Code  value  operation  args..."
             return 3
         fi
 
