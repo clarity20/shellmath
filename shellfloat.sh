@@ -276,6 +276,7 @@ function _shellfloat_add()
     local n1="$1"
     local n2="$2"
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+    local isNegative1 type1 isNegative2 type2
 
     # Set constants
     _shellfloat_getReturnCode "SUCCESS"
@@ -433,9 +434,15 @@ function _shellfloat_subtract()
 {
     local n1="$1"
     local n2="$2"
+    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
+        return $SUCCESS
+    elif [[ $# -eq 1 ]]; then
+        # Note the value as-is and return
+        _shellfloat_setReturnValue $n1
+        if ((!isTesting)); then echo $n1; fi
         return $SUCCESS
     fi
 
@@ -464,6 +471,7 @@ function _shellfloat_multiply()
     local n1="$1"
     local n2="$2"
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+    local isNegative1 type1 isNegative2 type2
 
     # Set constants
     _shellfloat_getReturnCode "SUCCESS"
@@ -562,6 +570,79 @@ function _shellfloat_multiply()
 
 function _shellfloat_divide()
 {
-    return 0
+    local n1="$1"
+    local n2="$2"
+    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+    local isNegative1 type1 isNegative2 type2
+
+    # Set constants
+    _shellfloat_getReturnCode "SUCCESS"
+    declare -ri SUCCESS=$?
+    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: ${FUNCNAME[0]}  dividend  divisor"
+        return $SUCCESS
+    elif [[ $# -eq 1 ]]; then
+        # Note the value as-is and return
+        _shellfloat_setReturnValue $n1
+        if ((!isTesting)); then echo $n1; fi
+        return $SUCCESS
+    fi
+
+#TODO Throw error on divide by zero !!!
+
+    # Check and break down the first argument
+    _shellfloat_checkArgument "$n1"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1
+
+    # Check and break down the second argument
+    _shellfloat_checkArgument "$n2"
+    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
+    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
+
+    # Calculate with as much precision as the system will allow. To determine
+    # this precision, we probe for the value at which long-long-ints overflow.
+    # We test the 64-bit, 32-bit and 16-bit thresholds and set the precision
+    # so as to keep us safely below the applicable threshold
+    local precision
+    if ((2**63 < 2**63-1)); then
+        precision=18
+    elif ((2**31 < 2**31-1)); then
+        precision=9
+    else     ## ((2**15 < 2**15-1))
+        precision=4
+    fi
+
+    # Convert the division problem to an *integer* division problem by rescaling
+    # both inputs so as to lose their decimal points. To obtain maximal precision,
+    # we scale up the numerator further, padding with as many zeros as it can hold
+    local numerator denominator quotient
+    local rescaleFactor zeroCount zeroTail
+    ((zeroCount = precision - ${#integerPart1} - ${#fractionalPart1}))
+    ((rescaleFactor = precision - ${#integerPart1} - ${#fractionalPart2}))
+    printf -v zeroTail "%0*s" $zeroCount 0
+
+    # Rewrite the fraction to be computed, and compute it
+    numerator=${integerPart1}${fractionalPart1}${zeroTail}
+    denominator=${integerPart2}${fractionalPart2}
+    quotient=((10#$numerator / 10#$denominator))
+
+    # Rescale back
+    quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
+
+    # Determine the sign of the product
+    if ((isNegative1 != isNegative2)); then
+        quotient="-"$quotient
+    fi
+
+    # Note the result, print if running "normally", and return
+    _shellfloat_setReturnValue $quotient
+    if ((!isTesting)); then
+        echo $quotient
+    fi
+
+    return $SUCCESS
 }
 
