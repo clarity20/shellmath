@@ -115,3 +115,18 @@ String 0.000001 multiply 0.01 0.0001
 # Interpret in base 10
 String 2.2781  multiply 1.09 2.09
 
+####################
+# Tests for DIVISION
+####################
+String 4     divide 4
+String 4     divide 20 5
+
+String 0.5   divide 1 2
+String -0.5   divide -1 2
+
+# Mixed fractions
+String 34.54   divide 3454 100
+
+# Non-terminating decimals
+String 0.1666666666666666    divide 1 6
+
