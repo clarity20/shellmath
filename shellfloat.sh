@@ -16,6 +16,7 @@ declare -A -r __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
     [ILLEGAL_NUMBER]="2:Invalid decimal number argument: '%s'"
+    [DIVIDE_BY_ZERO]="3:Divide by zero error"
 )
 
 declare -A -r __shellfloat_numericTypes=(
@@ -590,7 +591,11 @@ function _shellfloat_divide()
         return $SUCCESS
     fi
 
-#TODO Throw error on divide by zero !!!
+    # Throw error on divide by zero
+    if ((n2 == 0)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[DIVIDE_BY_ZERO]}  "$arg"
+        return $?
+    fi
 
     # Check and break down the first argument
     _shellfloat_checkArgument "$n1"
@@ -624,17 +629,29 @@ function _shellfloat_divide()
     ((rescaleFactor = precision - ${#integerPart1} - ${#fractionalPart2}))
     printf -v zeroTail "%0*s" $zeroCount 0
 
-    # Rewrite the fraction to be computed, and compute it
+    # Rescale and rewrite the fraction to be computed, and compute it
     numerator=${integerPart1}${fractionalPart1}${zeroTail}
     denominator=${integerPart2}${fractionalPart2}
-    quotient=((10#$numerator / 10#$denominator))
+    ((quotient = 10#$numerator / 10#$denominator))
 
     # Rescale back
-    quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
+    if ((rescaleFactor >= ${#quotient})); then
+        quotient="0."${quotient:(-$rescaleFactor)}
+    else
+        quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
+    fi
 
-    # Determine the sign of the product
+    # Determine the sign of the quotient
     if ((isNegative1 != isNegative2)); then
         quotient="-"$quotient
+    fi
+
+    if ((isTesting)); then
+        # Trim zeros. (Requires decimal point and zero tail.)
+        if [[ "$quotient" =~ [\.].*0$ ]]; then
+            [[ $quotient =~ [\.]?0+$ ]]
+            quotient=${quotient%${BASH_REMATCH[0]}}
+        fi
     fi
 
     # Note the result, print if running "normally", and return
