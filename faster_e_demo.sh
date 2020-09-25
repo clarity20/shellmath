@@ -23,12 +23,12 @@ _shellfloat_getReturnValue term
 e=$term
 
 # Compute successive terms T(n) := T(n-1)/n and accumulate into e
-for ((count=1; count<=N; count++)); do
-    _shellfloat_divide  $term  $count
+for ((n=1; n<=N; n++)); do
+    _shellfloat_divide  $term  $n
     _shellfloat_getReturnValue term
     _shellfloat_add  $e  $term
     _shellfloat_getReturnValue e
 done
 
 echo "e = $e"
-# exit 0
+exit 0

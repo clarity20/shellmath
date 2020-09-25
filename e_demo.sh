@@ -20,10 +20,10 @@ term=$(_shellfloat_divide  1  $zero_factorial)
 e=$term
 
 # Compute successive terms T(n) := T(n-1)/n and accumulate into e
-for ((count=1; count<=N; count++)); do
-    term=$(_shellfloat_divide  $term  $count)
+for ((n=1; n<=N; n++)); do
+    term=$(_shellfloat_divide  $term  $n)
     e=$(_shellfloat_add  $e  $term)
 done
 
 echo "e = $e"
-# exit 0
+exit 0
