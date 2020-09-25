@@ -31,6 +31,8 @@ declare -r __shellfloat_allTypes=$((__shellfloat_numericTypes[INTEGER] \
 declare -r __shellfloat_true=1
 declare -r __shellfloat_false=0
 
+declare __shellfloat_isVerbose=${__shellfloat_true}
+
 function _shellfloat_getReturnCode()
 {
     local errorName="$1"
@@ -282,9 +284,13 @@ function _shellfloat_add()
     # Set constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
-    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
-    local isSubcall=${__shellfloat_false}       # Is the caller itself an arithmetic function?
-    [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]] && (( isSubcall = __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+
+    # Is the caller itself an arithmetic function?
+    local isSubcall=${__shellfloat_false}
+    if [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]]; then
+        isSubcall=${__shellfloat_true}
+    fi
 
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
@@ -293,7 +299,7 @@ function _shellfloat_add()
     elif [[ $# -eq 1 ]]; then
         # Note the result as-is, print if running "normally", and return
         _shellfloat_setReturnValue $n1
-        if (( !(isTesting || isSubcall) )); then echo $n1; fi
+        if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
@@ -321,7 +327,7 @@ function _shellfloat_add()
     if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
         local sum=$((integerPart1 + integerPart2))
         _shellfloat_setReturnValue $sum
-        if ((! (isTesting || isSubcall) )); then
+        if (( isVerbose || ! isSubcall )); then
             echo $sum
         fi
 
@@ -422,7 +428,7 @@ function _shellfloat_add()
 
     # Note the result, print if running "normally", and return
     _shellfloat_setReturnValue $sum
-    if ((! (isTesting || isSubcall) )); then
+    if (( isVerbose && ! isSubcall )); then
         echo $sum
     fi
 
@@ -435,7 +441,7 @@ function _shellfloat_subtract()
 {
     local n1="$1"
     local n2="$2"
-    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+    local isVerbose=$((__shellfloat_isVerbose == __shellfloat_true ))
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
@@ -443,7 +449,7 @@ function _shellfloat_subtract()
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
-        if ((!isTesting)); then echo $n1; fi
+        if ((isVerbose)); then echo $n1; fi
         return $SUCCESS
     fi
 
@@ -458,7 +464,7 @@ function _shellfloat_subtract()
     local difference
     _shellfloat_add "$n1" "$n2"
     _shellfloat_getReturnValue difference
-    if ((!isTesting)); then
+    if ((isVerbose)); then
         echo $difference
     fi
 
@@ -477,7 +483,13 @@ function _shellfloat_multiply()
     # Set constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
-    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+
+    # Is the caller itself an arithmetic function?
+    local isSubcall=${__shellfloat_false}
+    if [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]]; then
+        isSubcall=${__shellfloat_true}
+    fi
 
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
@@ -486,7 +498,7 @@ function _shellfloat_multiply()
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
-        if ((!isTesting)); then echo $n1; fi
+        if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
@@ -560,7 +572,7 @@ function _shellfloat_multiply()
 
     # Note the result, print if running "normally", and return
     _shellfloat_setReturnValue $product
-    if ((!isTesting)); then
+    if (( isVerbose && ! isSubcall )); then
         echo $product
     fi
 
@@ -579,7 +591,12 @@ function _shellfloat_divide()
     # Set constants
     _shellfloat_getReturnCode "SUCCESS"
     declare -ri SUCCESS=$?
-    local isTesting=$(( __shellfloat_isTesting == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+
+    local isTesting=${__shellfloat_false}
+    if [[ "${FUNCNAME[1]}" == "_shellfloat_assert_functionReturn" ]]; then
+        isTesting=${__shellfloat_true}
+    fi
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  dividend  divisor"
@@ -587,7 +604,7 @@ function _shellfloat_divide()
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
-        if ((!isTesting)); then echo $n1; fi
+        if ((isVerbose)); then echo $n1; fi
         return $SUCCESS
     fi
 
@@ -649,6 +666,7 @@ function _shellfloat_divide()
     if ((isTesting)); then
         # Trim zeros. (Requires decimal point and zero tail.)
         if [[ "$quotient" =~ [\.].*0$ ]]; then
+            # If the decimal point IMMEDIATELY precedes the 0s, remove that too
             [[ $quotient =~ [\.]?0+$ ]]
             quotient=${quotient%${BASH_REMATCH[0]}}
         fi
@@ -656,7 +674,7 @@ function _shellfloat_divide()
 
     # Note the result, print if running "normally", and return
     _shellfloat_setReturnValue $quotient
-    if ((!isTesting)); then
+    if ((isVerbose)); then
         echo $quotient
     fi
 
