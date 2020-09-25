@@ -636,7 +636,7 @@ function _shellfloat_divide()
 
     # Rescale back
     if ((rescaleFactor >= ${#quotient})); then
-        quotient="0."${quotient:(-$rescaleFactor)}
+        printf -v quotient "0.%0*s" $rescaleFactor $quotient
     else
         quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
     fi
