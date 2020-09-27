@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
+###############################################################################
+# This script illustrates the use of the shellfloat APIs to perform
+# floating-point calculations. We approximate the mathematical constant 'e'
+# from its Taylor polynomials centered at 0.
+###############################################################################
+
 source shellfloat.sh
 
 if [[ $# -ne 1 ]]; then
-    echo "USAGE: $0  _N_"
+    echo "USAGE: ${BASH_SOURCE##*/}  *N*"
     echo "       Approximates 'e' using the N-th order Maclaurin polynomial"
     echo "       (i.e. the Taylor polynomial centered at 0)."
     exit 0

@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
 
+###############################################################################
+# This script performs the same task as "e_demo.sh" but uses an unconventional,
+# hidden mechanism to simulate pass-and-return by reference. This enables us
+# to call functions and capture their results without subshelling. This is
+# a substantial time-saver on Linux emulation layers such as Cygwin and minGW
+# but makes less of a difference on Linux.
+#
+# The crucial steps are to turn off "__shellfloat_isVerbose" as shown below,
+# to invoke the shellfloat API functions without subshelling, and to fetch
+# their return values from global storage IMMEDIATELY THEREAFTER using the
+# utility function "_shellfloat_getReturnValue."
+###############################################################################
+
 source shellfloat.sh
 
 if [[ $# -ne 1 ]]; then
-    echo "USAGE: $0  _N_"
+    echo "USAGE: ${BASH_SOURCE##*/}  *N*"
     echo "       Approximates 'e' using the N-th order Maclaurin polynomial"
     echo "       (i.e. the Taylor polynomial centered at 0)."
     exit 0
