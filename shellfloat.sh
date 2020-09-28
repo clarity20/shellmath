@@ -89,31 +89,24 @@ declare -ir __shellfloat_storageSpace=8
 function _shellfloat_setReturnValues()
 {
     declare -i _i
-    local _givenValue _storageCell
 
     for ((_i=1; _i<=$#; _i++)); do
-        _storageCell="__shellfloat_storage["$_i"]"
-        _givenValue=${!_i}
-        eval $_storageCell='$_givenValue'
+        __shellfloat_storage[_i]="${!_i}"
     done
     for ((; _i<=__shellfloat_storageSpace; _i++)); do
-        unset __shellfloat_storage[$_i]
+        __shellfloat_storage[_i]=""
     done
 }
 
 function _shellfloat_getReturnValues()
 {
     declare -i _i
-    local _variableName _valueInStorage _storageCell
 
     for ((_i=1; _i<=$#; _i++)); do
-        _variableName=${!_i}
-        _storageCell="__shellfloat_storage["$_i"]"
-        _valueInStorage=${!_storageCell}
-        if [[ -n $_valueInStorage ]]; then
-            eval $_variableName='$_valueInStorage'
+        if [[ -n "${__shellfloat_storage[_i]}" ]]; then
+            eval ${!_i}="${__shellfloat_storage[_i]}"
         else
-            unset $_variableName
+            unset ${!_i}
         fi
     done
 }
@@ -251,8 +244,10 @@ function _shellfloat_checkArgument()
     local integerPart fractionalPart
     local flags isNegative type
 
+#time {  # 0.5 ms
     _shellfloat_getReturnCode "ILLEGAL_NUMBER"
     declare -ri ILLEGAL_NUMBER=$?
+#}
 
     _shellfloat_validateAndParse "$arg";  flags=$?
     _shellfloat_getReturnValues  integerPart  fractionalPart
@@ -262,9 +257,11 @@ function _shellfloat_checkArgument()
         return $?
     fi
 
+#time { # 0.5 ms
     # Register important information about the first value
     isNegative=$((flags & __shellfloat_true))
     type=$((flags & __shellfloat_allTypes))
+#}
 
     _shellfloat_setReturnValues "$integerPart" "$fractionalPart" $isNegative $type
     return $SUCCESS
@@ -313,6 +310,7 @@ function _shellfloat_add()
         fi
     fi
 
+time {
     # Check and break down the first argument
     _shellfloat_checkArgument "$n1"
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
@@ -322,6 +320,7 @@ function _shellfloat_add()
     _shellfloat_checkArgument "$n2"
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
     _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
+}
 
     # Quick add & return for integer adds
     if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
