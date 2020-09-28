@@ -139,8 +139,8 @@ function _shellfloat_validateAndParse()
             n=${n:1}
         fi
 
-        _shellfloat_setReturnValues $n 0
-        return $((numericType|isNegative))
+        _shellfloat_setReturnValues $n 0 $isNegative $numericType
+        return $returnCode
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
@@ -154,8 +154,8 @@ function _shellfloat_validateAndParse()
             n=${n:1}
         fi
 
-        _shellfloat_setReturnValues $integerPart $fractionalPart
-        return $((numericType|isNegative))
+        _shellfloat_setReturnValues $integerPart $fractionalPart $isNegative $numericType
+        return $returnCode
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
     elif [[ "$n" =~ (.*)[Ee](.*) ]]; then
@@ -193,8 +193,8 @@ function _shellfloat_validateAndParse()
                     n=${sigInteger}${sigFraction}
                     numericType=${__shellfloat_numericTypes[INTEGER]}
                 fi
-                _shellfloat_setReturnValues ${n}
-                return $((numericType|isNegative))
+                _shellfloat_setReturnValues ${n} $isNegative $numericType
+                return $returnCode
 
             elif ((exponent < 0)); then
                 ((zeroCount = -exponent - sigIntLength))
@@ -209,15 +209,15 @@ function _shellfloat_validateAndParse()
                     n="0 "${sigInteger}${sigFraction}
                     numericType=${__shellfloat_numericTypes[DECIMAL]}
                 fi
-                _shellfloat_setReturnValues ${n}
-                return $((numericType|isNegative))
+                _shellfloat_setReturnValues ${n} $isNegative $numericType
+                return $returnCode
 
             else
                 # exponent == 0 means the number is already aligned as desired
                 n=${sigInteger}" "${sigFraction}
-                _shellfloat_setReturnValues ${n}
+                _shellfloat_setReturnValues ${n} $isNegative $numericType
                 numericType=${__shellfloat_numericTypes[DECIMAL]}
-                return $((numericType|isNegative))
+                return $returnCode
             fi
 
         # Reject "pseudo-scientific numbers" xxx[Ee]yyy where xxx, yyy are invalid as numbers
@@ -244,26 +244,18 @@ function _shellfloat_checkArgument()
     local integerPart fractionalPart
     local flags isNegative type
 
-#time {  # 0.5 ms
     _shellfloat_getReturnCode "ILLEGAL_NUMBER"
     declare -ri ILLEGAL_NUMBER=$?
-#}
 
     _shellfloat_validateAndParse "$arg";  flags=$?
-    _shellfloat_getReturnValues  integerPart  fractionalPart
+    _shellfloat_getReturnValues  integerPart  fractionalPart  isNegative  type
 
     if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
         _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
         return $?
     fi
 
-#time { # 0.5 ms
-    # Register important information about the first value
-    isNegative=$((flags & __shellfloat_true))
-    type=$((flags & __shellfloat_allTypes))
-#}
-
-    _shellfloat_setReturnValues "$integerPart" "$fractionalPart" $isNegative $type
+    # Leave the return values alone; let the caller use them
     return $SUCCESS
 }
 
@@ -310,7 +302,6 @@ function _shellfloat_add()
         fi
     fi
 
-time {
     # Check and break down the first argument
     _shellfloat_checkArgument "$n1"
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
@@ -320,7 +311,6 @@ time {
     _shellfloat_checkArgument "$n2"
     if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
     _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2
-}
 
     # Quick add & return for integer adds
     if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
