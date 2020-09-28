@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
 ###############################################################################
-# This script performs the same task as "e_demo.sh" but uses an unconventional,
-# hidden mechanism to simulate pass-and-return by reference. This enables us
-# to call functions and capture their results without subshelling. This is
-# a substantial time-saver on Linux emulation layers such as Cygwin and minGW
-# but makes less of a difference on Linux.
+# This script performs the same task as "e_demo.sh" but demonstrates a major
+# performance-optimization technique for shellfloat. The speedup is especially
+# significant when run on a Linux emulation layer such as Cygwin or minGW over
+# a Windows substrate.
 #
-# The crucial steps are to turn off "__shellfloat_isVerbose" as shown below,
-# to invoke the shellfloat API functions without subshelling, and to fetch
-# their return values from global storage IMMEDIATELY THEREAFTER using the
-# utility function "_shellfloat_getReturnValue."
+# The speedup relies on a hidden mechanism to simulate pass-and-return by
+# reference, eliminating the need for echos and subshells in order to capture
+# the side effects of a function call. See the code for examples but basically, 
+# if you start by turning off "__shellfloat_isVerbose" (see below),
+#    then the line   "value = $(myFunction argument)"
+#    can become      "myFunction argument;  _shellfloat_getReturnValue value".
 ###############################################################################
 
 source shellfloat.sh
@@ -30,7 +31,7 @@ __shellfloat_isVerbose=${__shellfloat_false}
 # Initialize
 n=0;  N=$1;  zero_factorial=1
 
-# Initialize e to the zeroth-order term
+# Initialize "e" to its zeroth-order term
 _shellfloat_divide  1  $zero_factorial
 _shellfloat_getReturnValue term
 e=$term
