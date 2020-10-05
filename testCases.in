@@ -133,3 +133,17 @@ String 0.1666666666666666    divide 1 6
 # Decimal arguments
 String 0.25     divide 0.5 2
 String 0.04165  divide 0.1666 4
+
+###########################
+# Tests for scientific math
+###########################
+String 8.8e4      add  1.1e4  7.7e4
+String 4.239e1    add  1.224e1 3.015e1
+String -6.6e4     add  1.1e4  -7.7e4
+String -66000     add  11000  -77000
+String 1.23123e2  add 1.23e2 1.23e-1
+String 8.1403e7   multiply 2.03e5 4.01e2
+String 1.0e-7     multiply 1.0e-3 1.0e-4
+String 1.0e-7     multiply 1e-3 1e-4
+
+
