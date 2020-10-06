@@ -24,19 +24,18 @@ declare -A -r __shellfloat_numericTypes=(
     [DECIMAL]=32
     [SCIENTIFIC]=16
 )
-declare -r __shellfloat_allTypes=$((__shellfloat_numericTypes[INTEGER] \
-    + __shellfloat_numericTypes[DECIMAL] \
-    + __shellfloat_numericTypes[SCIENTIFIC]))
 
 declare -r __shellfloat_true=1
 declare -r __shellfloat_false=0
 
 declare __shellfloat_isVerbose=${__shellfloat_true}
+declare __shellfloat_didPrecalc=${__shellfloat_false}
 
 function _shellfloat_getReturnCode()
 {
     local errorName="$1"
-    return ${__shellfloat_returnCodes[$errorName]%%:*}
+    [[ "${__shellfloat_returnCodes[$errorName]}" =~ ^[0-9]+ ]]
+    return ${BASH_REMATCH[0]}
 }
 
 function _shellfloat_warn()
@@ -79,6 +78,28 @@ function _shellfloat_handleError()
 }
 
 
+function _shellfloat_precalc()
+{
+    # Set "global constants" here
+    _shellfloat_getReturnCode SUCCESS; __shellfloat_SUCCESS=$?
+    _shellfloat_getReturnCode ILLEGAL_NUMBER; __shellfloat_ILLEGAL_NUMBER=$?
+
+    # Determine the decimal precision to which we can calculate accurately.
+    # To do this we probe for the value at which long-long-ints overflow.
+    # We test the 64-bit, 32-bit and 16-bit thresholds and set the precision
+    # so as to keep us safely below the applicable threshold
+    if ((2**63 < 2**63-1)); then
+        __shellfloat_precision=18
+    elif ((2**31 < 2**31-1)); then
+        __shellfloat_precision=9
+    else     ## ((2**15 < 2**15-1))
+        __shellfloat_precision=4
+    fi
+
+    __shellfloat_didPrecalc=$__shellfloat_true
+}
+
+
 ################################################################################
 # Simulate pass-and-return by reference using a secret global storage array
 ################################################################################
@@ -101,14 +122,17 @@ function _shellfloat_setReturnValues()
 function _shellfloat_getReturnValues()
 {
     declare -i _i
+    local evalstring
 
     for ((_i=1; _i<=$#; _i++)); do
         if [[ -n "${__shellfloat_storage[_i]}" ]]; then
-            eval ${!_i}="${__shellfloat_storage[_i]}"
+            evalstring+=${!_i}="${__shellfloat_storage[_i]}"" "
         else
             unset ${!_i}
         fi
     done
+
+    eval "$evalstring"
 }
 
 function _shellfloat_setReturnValue() { _shellfloat_setReturnValues "$1"; }
@@ -124,11 +148,9 @@ function _shellfloat_validateAndParse()
     local n="$1"
     local isNegative=${__shellfloat_false}
     local isScientific=${__shellfloat_false}
-    local numericType
+    local numericType returnCode
 
-    # Initialize return code to SUCCESS
-    _shellfloat_getReturnCode SUCCESS
-    local returnCode=$?
+    ((returnCode = __shellfloat_SUCCESS))
     
     # Accept integers
     if [[ "$n" =~ ^[-]?[0-9]+$ ]]; then
@@ -224,49 +246,26 @@ function _shellfloat_validateAndParse()
                 return $returnCode
             fi
 
-        # Reject "pseudo-scientific numbers" xxx[Ee]yyy where xxx, yyy are invalid as numbers
+        # Reject strings like xxx[Ee]yyy where xxx, yyy are not valid numbers
         else
-            _shellfloat_getReturnCode ILLEGAL_NUMBER
-            returnCode=$?
+            ((returnCode = __shellfloat_ILLEGAL_NUMBER))
             _shellfloat_setReturnValues ""
             return $returnCode
         fi
 
     # Reject everything else
     else
-        _shellfloat_getReturnCode ILLEGAL_NUMBER
-        returnCode=$?
+        ((returnCode = __shellfloat_ILLEGAL_NUMBER))
         _shellfloat_setReturnValues ""
         return $returnCode
     fi
 }
 
 
-function _shellfloat_checkArgument()
-{
-    local arg="$1"
-    local integerPart fractionalPart
-    local flags isNegative type isScientific
-
-    _shellfloat_getReturnCode "ILLEGAL_NUMBER"
-    declare -ri ILLEGAL_NUMBER=$?
-
-    _shellfloat_validateAndParse "$arg";  flags=$?
-    _shellfloat_getReturnValues  integerPart  fractionalPart  isNegative  type  isScientific
-
-    if [[ "$flags" == "$ILLEGAL_NUMBER" ]]; then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
-        return $?
-    fi
-
-    # Leave the return values alone; let the caller use them
-    return $SUCCESS
-}
-
 function _shellfloat_numToScientific()
 {
     local integerPart="$1" fractionalPart="$2"
-    local exponent scientific head tail
+    local exponent head tail scientific
 
     if ((integerPart > 0)); then
         ((exponent = ${#integerPart}-1))
@@ -302,9 +301,10 @@ function _shellfloat_add()
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
     local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    # Set constants
-    _shellfloat_getReturnCode "SUCCESS"
-    declare -ri SUCCESS=$?
+    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+        _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+    fi
+
     local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
 
     # Is the caller itself an arithmetic function?
@@ -316,33 +316,38 @@ function _shellfloat_add()
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  addend_1  addend_2"
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the result as-is, print if running "normally", and return
         _shellfloat_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
         shift
         _shellfloat_add "$@"
         local recursiveReturn=$?
         _shellfloat_getReturnValue n2       # use n2 as an accumulator
-        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
+        if (( recursiveReturn != __shellfloat_SUCCESS )); then
             _shellfloat_setReturnValue $n2
             return $recursiveReturn
         fi
     fi
 
-    # Check and break down the first argument
-    _shellfloat_checkArgument "$n1"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1 isScientific1
-
-    # Check and break down the second argument
-    _shellfloat_checkArgument "$n2"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2 isScientific2
+    # Check and parse the arguments
+    local flags
+    _shellfloat_validateAndParse "$n1";  flags=$?
+    _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
+    _shellfloat_validateAndParse "$n2";  flags=$?
+    _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
 
     # Quick add & return for integer adds
     if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
@@ -357,7 +362,7 @@ function _shellfloat_add()
         if (( isVerbose && ! isSubcall )); then
             echo $sum
         fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     fi
 
     # Right-pad both fractional parts with zeros to the same length
@@ -461,7 +466,7 @@ function _shellfloat_add()
         echo $sum
     fi
 
-    return $SUCCESS
+    return $__shellfloat_SUCCESS
 }
 
 ################################################################################
@@ -470,16 +475,20 @@ function _shellfloat_subtract()
 {
     local n1="$1"
     local n2="$2"
-    local isVerbose=$((__shellfloat_isVerbose == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+
+    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+        _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+    fi
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
         if ((isVerbose)); then echo $n1; fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     fi
 
     # Symbolically negate the second argument
@@ -489,7 +498,7 @@ function _shellfloat_subtract()
         n2="-"$n2
     fi
 
-    # Note the result, print if running "normally", and return
+    # Calculate, note the result, print if running "normally", and return
     local difference
     _shellfloat_add "$n1" "$n2"
     _shellfloat_getReturnValue difference
@@ -509,9 +518,10 @@ function _shellfloat_multiply()
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
     local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    # Set constants
-    _shellfloat_getReturnCode "SUCCESS"
-    declare -ri SUCCESS=$?
+    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+        _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+    fi
+
     local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
 
     # Is the caller itself an arithmetic function?
@@ -523,33 +533,38 @@ function _shellfloat_multiply()
     # Handle corner cases where argument count is not 2
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  factor_1  factor_2"
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -gt 2 ]]; then
         # Recurse on the trailing arguments
         shift
         _shellfloat_multiply "$@"
         local recursiveReturn=$?
         _shellfloat_getReturnValue n2       # use n2 as an accumulator
-        if [[ "$recursiveReturn" != "$SUCCESS" ]]; then
+        if (( recursiveReturn != __shellfloat_SUCCESS )); then
             _shellfloat_setReturnValue $n2
             return $recursiveReturn
         fi
     fi
 
-    # Check and break down the first argument
-    _shellfloat_checkArgument "$n1"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1 isScientific1
-
-    # Check and break down the second argument
-    _shellfloat_checkArgument "$n2"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2 isScientific2
+    # Check and parse the arguments
+    local flags
+    _shellfloat_validateAndParse "$n1";  flags=$?
+    _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
+    _shellfloat_validateAndParse "$n2";  flags=$?
+    _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
 
     # Quick multiply & return for integer multiplies
     if ((type1==type2 && type1==__shellfloat_numericTypes[INTEGER])); then
@@ -564,7 +579,7 @@ function _shellfloat_multiply()
         if (( isVerbose && ! isSubcall )); then
             echo $product
         fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     fi
 
     # Declarations: four components of the product per the distributive law
@@ -628,7 +643,7 @@ function _shellfloat_multiply()
         echo $product
     fi
 
-    return $SUCCESS
+    return $__shellfloat_SUCCESS
 }
 
 ################################################################################
@@ -640,9 +655,10 @@ function _shellfloat_divide()
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
     local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    # Set constants
-    _shellfloat_getReturnCode "SUCCESS"
-    declare -ri SUCCESS=$?
+    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+        _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+    fi
+
     local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
 
     local isTesting=${__shellfloat_false}
@@ -652,12 +668,12 @@ function _shellfloat_divide()
 
     if [[ $# -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  dividend  divisor"
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
         if ((isVerbose)); then echo $n1; fi
-        return $SUCCESS
+        return $__shellfloat_SUCCESS
     fi
 
     # Throw error on divide by zero
@@ -666,27 +682,19 @@ function _shellfloat_divide()
         return $?
     fi
 
-    # Check and break down the first argument
-    _shellfloat_checkArgument "$n1"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart1 fractionalPart1 isNegative1 type1 isScientific1
-
-    # Check and break down the second argument
-    _shellfloat_checkArgument "$n2"
-    if [[ $? == ${__shellfloat_returnCodes[ILLEGAL_NUMBER]} ]]; then return $?; fi
-    _shellfloat_getReturnValues integerPart2 fractionalPart2 isNegative2 type2 isScientific2
-
-    # Calculate with as much precision as the system will allow. To determine
-    # this precision, we probe for the value at which long-long-ints overflow.
-    # We test the 64-bit, 32-bit and 16-bit thresholds and set the precision
-    # so as to keep us safely below the applicable threshold
-    local precision
-    if ((2**63 < 2**63-1)); then
-        precision=18
-    elif ((2**31 < 2**31-1)); then
-        precision=9
-    else     ## ((2**15 < 2**15-1))
-        precision=4
+    # Check and parse the arguments
+    local flags
+    _shellfloat_validateAndParse "$n1";  flags=$?
+    _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
+    fi
+    _shellfloat_validateAndParse "$n2";  flags=$?
+    _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
+    if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
+        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        return $?
     fi
 
     # Convert the division problem to an *integer* division problem by rescaling
@@ -694,8 +702,8 @@ function _shellfloat_divide()
     # we scale up the numerator further, padding with as many zeros as it can hold
     local numerator denominator quotient
     local rescaleFactor zeroCount zeroTail
-    ((zeroCount = precision - ${#integerPart1} - ${#fractionalPart1}))
-    ((rescaleFactor = precision - ${#integerPart1} - ${#fractionalPart2}))
+    ((zeroCount = __shellfloat_precision - ${#integerPart1} - ${#fractionalPart1}))
+    ((rescaleFactor = __shellfloat_precision - ${#integerPart1} - ${#fractionalPart2}))
     printf -v zeroTail "%0*s" $zeroCount 0
 
     # Rescale and rewrite the fraction to be computed, and compute it
@@ -736,6 +744,6 @@ function _shellfloat_divide()
         echo $quotient
     fi
 
-    return $SUCCESS
+    return $__shellfloat_SUCCESS
 }
 
