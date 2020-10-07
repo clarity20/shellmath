@@ -6,12 +6,13 @@
 # significant when run on a Linux emulation layer such as Cygwin or minGW over
 # a Windows substrate.
 #
-# The speedup relies on a hidden mechanism to simulate pass-and-return by
-# reference, eliminating the need for echos and subshells in order to capture
-# the side effects of a function call. See the code for examples but basically, 
-# if you start by turning off "__shellfloat_isVerbose" (see below),
-#    then the line   "value = $(myFunction argument)"
-#    can become      "myFunction argument;  _shellfloat_getReturnValue value".
+# The speedup uses global storage space to simulate pass-and-return by
+# reference so that you can capture the side effects of a function call without
+# writing to stdout and wrapping the call in a subshell. How to use:
+#
+#    Turn off  "__shellfloat_isVerbose"  as shown below.
+#    Then instead of invoking  "mySum = $(_shellfloat_add  $x  $y)",
+#    call  "_shellfloat_add  $x  $y;  _shellfloat_getReturnValue  mySum".
 ###############################################################################
 
 source shellfloat.sh
