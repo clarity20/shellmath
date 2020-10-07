@@ -114,9 +114,6 @@ function _shellfloat_setReturnValues()
     for ((_i=1; _i<=$#; _i++)); do
         __shellfloat_storage[_i]="${!_i}"
     done
-    for ((; _i<=__shellfloat_storageSpace; _i++)); do
-        __shellfloat_storage[_i]=""
-    done
 }
 
 function _shellfloat_getReturnValues()
@@ -125,18 +122,15 @@ function _shellfloat_getReturnValues()
     local evalstring
 
     for ((_i=1; _i<=$#; _i++)); do
-        if [[ -n "${__shellfloat_storage[_i]}" ]]; then
-            evalstring+=${!_i}="${__shellfloat_storage[_i]}"" "
-        else
-            unset ${!_i}
-        fi
+        evalstring+=${!_i}="${__shellfloat_storage[_i]}"" "
     done
 
     eval "$evalstring"
 }
 
-function _shellfloat_setReturnValue() { _shellfloat_setReturnValues "$1"; }
-function _shellfloat_getReturnValue() { _shellfloat_getReturnValues "$1"; }
+function _shellfloat_setReturnValue() { __shellfloat_storage[1]="$1"; }
+
+function _shellfloat_getReturnValue() { eval "$1"="${__shellfloat_storage[1]}"; }
 
 
 ################################################################################
