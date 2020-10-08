@@ -15,34 +15,44 @@ e = 2.7182818284589936
 ```
 
 This script uses a few `shellfloat` API calls to calculate the mathematical
-constant `e`. Now take a look at the script. The APIs are exercised using 
-the familiar shell-function syntax:
-```
-result = $(function_name  argument_1  argument_2)
-```
+constant *e*. The number *15* instructs the script to compute the *15th-degree* 
+Maclaurin polynomial for *e*. Take a look inside the script to see how it uses
+the `shellfloat` APIs `_shellfloat_add` and `_shellfloat_divide`.
 
-Now run the second demo program, `faster_e_demo.sh`:
+There is another demo script very much like this one but *different*, and the
+sensitive user can *feel* the difference. Try the following, but don't blink 
+or you'll miss it ;)
 ```
 $ faster_e_demo.sh 15
 e = 2.7182818284589936
 ```
 
-This is a faster version of the same script. If you're running Cygwin or minGW
-over Windows, the speedup will be quite substantial; here are my timings. And
-keep in mind that each encompasses ***31*** calls to the `shellfloat` arithmetic
-APIs plus a few other commands:
+Did you feel the difference? To drive the point home, try the `-t` option with
+both scripts, as I did from my minGW terminal running on Windows 10 with Intel i3
+Core CPU:
 ```
-$ ####  __Before:__  ####
-$ (time e_demo.sh 15) 2>&1 | awk '/real/ {print $2}'
-0m0.598s
-$
-$ ####  __After:__  ####
-$ (time faster_e_demo.sh 15) 2>&1 | awk '/real/ {print $2}'
-0m0.122s
+$ for n in {1..5}; do faster_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
+0m0.055s
+0m0.051s
+0m0.056s
+0m0.054s
+0m0.054s
+
+$ for n in {1..10}; do e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
+0m0.498s
+0m0.594s
+0m0.536s
+0m0.511s
+0m0.580s
 ```
 
-This script uses a "trick" to avoid subshelling when making those API 
-calls. See the script itself for details.
+Do keep in mind that every invocation of either script exercises the shellfloat 
+arithmetic subroutines 31 times. You can find further discussion of runtime 
+efficiency here:
+[Shellfloat and runtime efficiency](https://github.com/clarity20/shellfloat/wiki "Shellfloat and runtime efficiency")
+
+The comment header in `fasder_e_demo.sh` explains the difference. The code shows
+how to make the faster version work for you.
 
 ## Background
 The Bash shell does not have built-in facilities for decimal arithmetic, making
@@ -71,4 +81,4 @@ law right, then the sky's the limit! In other words:
 You can run your floating-point computations directly in Bash!
 
 ## Please see also:
-[A short discussion on arbitrary precision and shellfloat](https://github.com/clarity20/shellfloat/wiki "arbitrary precision and shellfloat")
+[A short discussion on arbitrary precision and shellfloat](https://github.com/clarity20/shellfloat/wiki "Shellfloat and arbitrary precision arithmetic")
