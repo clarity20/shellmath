@@ -50,15 +50,14 @@ function _shellfloat_assert_functionReturn()
     returnCode=$?
     __shellfloat_isVerbose=${__shellfloat_true}
 
-    # Fetch the return values. Their number will vary.
-    declare -a returns
-    _shellfloat_getReturnValues returns[0] returns[1] returns[2] \
-        returns[3] returns[4] returns[5] returns[6] returns[7]
+    # Fetch the return value. In shellfloat, there should always be just one.
+    local actualReturn
+    _shellfloat_getReturnValue actualReturn
 
     resultFormat="%-5s"
 
     if [[ $mode == RETURN_STRING ]]; then
-        if [[ "${returns[@]}" == "$expectedReturn" ]]; then
+        if [[ "$actualReturn" == "$expectedReturn" ]]; then
             printf $resultFormat ok
             return 0
         else

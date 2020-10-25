@@ -292,10 +292,8 @@ function _shellfloat_add()
 {
     local n1="$1"
     local n2="$2"
-    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
-    local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+    if ((! __shellfloat_didPrecalc)); then
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
@@ -308,28 +306,45 @@ function _shellfloat_add()
     fi
 
     # Handle corner cases where argument count is not 2
-    if [[ $# -eq 0 ]]; then
+    local argCount=$#
+    if [[ $argCount -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  addend_1  addend_2"
         return $__shellfloat_SUCCESS
-    elif [[ $# -eq 1 ]]; then
+    elif [[ $argCount -eq 1 ]]; then
         # Note the result as-is, print if running "normally", and return
         _shellfloat_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $__shellfloat_SUCCESS
-    elif [[ $# -gt 2 ]]; then
-        # Recurse on the trailing arguments
-        shift
-        _shellfloat_add "$@"
-        local recursiveReturn=$?
-        _shellfloat_getReturnValue n2       # use n2 as an accumulator
+    elif [[ $argCount -gt 2 ]]; then
+        local recursiveReturn
+
+        # Use a binary recursion tree to add everything up
+        # 1) left branch
+        _shellfloat_add ${@:1:$((argCount/2))}; recursiveReturn=$?
+        _shellfloat_getReturnValue n1
+        if (( recursiveReturn != __shellfloat_SUCCESS )); then
+            _shellfloat_setReturnValue $n1
+            return $recursiveReturn
+        fi
+        # 2) right branch
+        _shellfloat_add ${@:$((argCount/2+1))}; recursiveReturn=$?
+        _shellfloat_getReturnValue n2
         if (( recursiveReturn != __shellfloat_SUCCESS )); then
             _shellfloat_setReturnValue $n2
             return $recursiveReturn
         fi
+        # 3) head node
+        _shellfloat_add $n1 $n2; recursiveReturn=$?
+        _shellfloat_getReturnValue n2
+        _shellfloat_setReturnValue $n2
+        return $recursiveReturn
     fi
 
-    # Check and parse the arguments
+    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+    local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
     local flags
+
+    # Check and parse the arguments
     _shellfloat_validateAndParse "$n1";  flags=$?
     _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
@@ -471,7 +486,7 @@ function _shellfloat_subtract()
     local n2="$2"
     local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
 
-    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+    if ((! __shellfloat_didPrecalc)); then
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
@@ -509,10 +524,8 @@ function _shellfloat_multiply()
 {
     local n1="$1"
     local n2="$2"
-    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
-    local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+    if ((! __shellfloat_didPrecalc)); then
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
@@ -525,28 +538,45 @@ function _shellfloat_multiply()
     fi
 
     # Handle corner cases where argument count is not 2
-    if [[ $# -eq 0 ]]; then
+    local argCount=$#
+    if [[ $argCount -eq 0 ]]; then
         echo "Usage: ${FUNCNAME[0]}  factor_1  factor_2"
         return $__shellfloat_SUCCESS
-    elif [[ $# -eq 1 ]]; then
+    elif [[ $argCount -eq 1 ]]; then
         # Note the value as-is and return
         _shellfloat_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $__shellfloat_SUCCESS
-    elif [[ $# -gt 2 ]]; then
-        # Recurse on the trailing arguments
-        shift
-        _shellfloat_multiply "$@"
-        local recursiveReturn=$?
-        _shellfloat_getReturnValue n2       # use n2 as an accumulator
+    elif [[ $argCount -gt 2 ]]; then
+        local recursiveReturn
+
+        # Use a binary recursion tree to multiply everything out
+        # 1) left branch
+        _shellfloat_multiply ${@:1:$((argCount/2))}; recursiveReturn=$?
+        _shellfloat_getReturnValue n1
+        if (( recursiveReturn != __shellfloat_SUCCESS )); then
+            _shellfloat_setReturnValue $n1
+            return $recursiveReturn
+        fi
+        # 2) right branch
+        _shellfloat_multiply ${@:$((argCount/2+1))}; recursiveReturn=$?
+        _shellfloat_getReturnValue n2
         if (( recursiveReturn != __shellfloat_SUCCESS )); then
             _shellfloat_setReturnValue $n2
             return $recursiveReturn
         fi
+        # 3) head node
+        _shellfloat_multiply $n1 $n2; recursiveReturn=$?
+        _shellfloat_getReturnValue n2
+        _shellfloat_setReturnValue $n2
+        return $recursiveReturn
     fi
 
-    # Check and parse the arguments
+    local integerPart1  fractionalPart1  integerPart2  fractionalPart2
+    local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
     local flags
+
+    # Check and parse the arguments
     _shellfloat_validateAndParse "$n1";  flags=$?
     _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
@@ -649,7 +679,7 @@ function _shellfloat_divide()
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
     local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
 
-    if ((__shellfloat_didPrecalc == __shellfloat_false)); then
+    if ((! __shellfloat_didPrecalc)); then
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
