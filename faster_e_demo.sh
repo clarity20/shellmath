@@ -49,9 +49,9 @@ function run_algorithm()
 
     # Compute successive terms T(n) := T(n-1)/n and accumulate into e
     for ((n=1; n<=N; n++)); do
-        _shellfloat_divide  $term  $n
+time        _shellfloat_divide  $term  $n
         _shellfloat_getReturnValue term
-        _shellfloat_add  $e  $term
+time        _shellfloat_add  $e  $term
         _shellfloat_getReturnValue e
     done
 
