@@ -19,10 +19,6 @@ Code 0   getReturnCode SUCCESS
 Code 1   getReturnCode FAIL
 Code 2   getReturnCode ILLEGAL_NUMBER
 
-## Tests for warn()
-String "Invalid decimal number argument: '2.qr'"  \
-    warn "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}" 2.qr
-
 ## Tests for validateAndParse():
 ## Validate a number, determine its type and sign, split it into parts
 
