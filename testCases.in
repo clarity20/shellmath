@@ -27,22 +27,16 @@ Code    2      validateAndParse NaN
 String    ""   validateAndParse NaN
 # Positive integers
 String  "4"    validateAndParse 4
-Code    64     validateAndParse 4
 # Negative integers
 String    9    validateAndParse -9
-Code     65    validateAndParse -9
 # Decimals
 String  "4 2"  validateAndParse 4.2
-Code    32     validateAndParse 4.2
 # Negative decimals
-Code    33     validateAndParse -4.2
+String "-4 2"  validateAndParse -4.2
 # Scientific / exponential notation: Check all code branches
 String  "340000"   validateAndParse 3.4e5
-Code    64         validateAndParse 3.4e5
 String  "344 4"    validateAndParse 3.444e2
-Code    32         validateAndParse 3.444e2
 String  34567      validateAndParse 3.4567e4
-Code    64         validateAndParse 3.4567e4
 String  "0 003456" validateAndParse 3.456e-3
 String  "34 56"    validateAndParse 345.6e-1
 String  "0 23011"  validateAndParse 23.011e-2
@@ -110,6 +104,9 @@ String 0.000001 multiply 0.01 0.0001
 
 # Interpret in base 10
 String 2.2781  multiply 1.09 2.09
+
+# Recursive multiplication
+String 35.1384  multiply 1.1 2.2 3.3 4.4
 
 ####################
 # Tests for DIVISION
