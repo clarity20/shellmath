@@ -7,15 +7,22 @@
 # Usage:
 #
 #    source thisPath/shellfloat.sh
-#    add() { echo $(_shellfloat_add "$@"); }    # Rename as desired
-#    mySum=$(add 202.895 6.00311)
+#
+#    # Conventional method: call the APIs by subshelling
+#    mySum=$( _shellfloat_add 202.895 6.00311 )
+#    echo $mySum
+#
+#    # Faster method: use hidden globals to simulate a more flexible pass-and-return
+#    _shellfloat_add 44.2 -87
+#    _shellfloat_getReturnValue mySum
+#    echo $mySum
 # 
 ################################################################################
 
 declare -A -r __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
-    [ILLEGAL_NUMBER]="2:Invalid decimal number argument: '%s'"
+    [ILLEGAL_NUMBER]="2:Invalid argument; decimal number required: '%s'"
     [DIVIDE_BY_ZERO]="3:Divide by zero error"
 )
 
