@@ -107,8 +107,8 @@ that this ***cannot*** be done:
 
 Meanwhile, 
 
-+ Bash maintainer (BDFL?) Chet Ramey sounds a different note in [The Bash Reference Guide, Section 6.5] (https://tiswww.case.edu/php/chet/bash/bashref.html#Shell-Arithmetic)
-  by describing only what the built-in arithmetic operators ***can*** do.
++ Bash maintainer (BDFL?) Chet Ramey sounds a (brighter?) note in [The Bash Reference Guide, Section 6.5](https://tiswww.case.edu/php/chet/bash/bashref.html#Shell-Arithmetic)
+  by emphasizing what the built-in arithmetic operators ***can*** do.
 
 But finally, a glimmer of hope:
 
@@ -126,7 +126,7 @@ performs the appropriate integer operations on the parts, and recombines the res
 (In the spirit of Bash, numerical overflow is silently ignored.)
 
 Because if we can get carrying, borrowing, place value, and the distributive
-law right, then the sky's the limit! In other words,
+law right, then the sky's the limit! As they say-- erm, as they ___said___ in Rome,
 
         Ad astra per aspera.
 
