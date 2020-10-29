@@ -242,8 +242,8 @@ function _shellfloat_validateAndParse()
             else
                 # exponent == 0 means the number is already aligned as desired
                 n=${sigInteger}" "${sigFraction}
-                _shellfloat_setReturnValues ${n} $isNegative $numericType $isScientific
                 numericType=${__shellfloat_numericTypes[DECIMAL]}
+                _shellfloat_setReturnValues ${n} $isNegative $numericType $isScientific
                 return $returnCode
             fi
 
@@ -355,13 +355,13 @@ function _shellfloat_add()
     _shellfloat_validateAndParse "$n1";  flags=$?
     _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n1"
         return $?
     fi
     _shellfloat_validateAndParse "$n2";  flags=$?
     _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
         return $?
     fi
 
@@ -497,18 +497,18 @@ function _shellfloat_subtract()
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
-    if [[ $# -eq 0 ]]; then
+    if [[ $# -eq 0 || $# -gt 2 ]]; then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
         return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
-        _shellfloat_setReturnValue $n1
+        _shellfloat_setReturnValue "$n1"
         if ((isVerbose)); then echo $n1; fi
         return $__shellfloat_SUCCESS
     fi
 
     # Symbolically negate the second argument
-    if [[ $n2 =~ ^- ]]; then
+    if [[ "$n2" =~ ^- ]]; then
         n2=${n2:1}
     else
         n2="-"$n2
@@ -587,13 +587,13 @@ function _shellfloat_multiply()
     _shellfloat_validateAndParse "$n1";  flags=$?
     _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n1"
         return $?
     fi
     _shellfloat_validateAndParse "$n2";  flags=$?
     _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
         return $?
     fi
 
@@ -613,7 +613,7 @@ function _shellfloat_multiply()
         return $__shellfloat_SUCCESS
     fi
 
-    # Declarations: four components of the product per the distributive law
+    # The product has four components per the distributive law
     declare intProduct floatProduct innerProduct1 innerProduct2
     # Widths of the decimal parts
     declare floatWidth fractionalWidth1 fractionalWidth2
@@ -633,7 +633,7 @@ function _shellfloat_multiply()
     ((innerProduct1 = integerPart1 * 10#$fractionalPart2))
     ((innerProduct2 = integerPart2 * 10#$fractionalPart1))
 
-    # Rescale the inner products as decimals so we can shellfloat_add() them
+    # Rescale the inner products back to decimals so we can shellfloat_add() them
     if ((fractionalWidth2 <= ${#innerProduct1})); then
         local innerInt1=${innerProduct1:0:(-$fractionalWidth2)}
         local innerFloat1=${innerProduct1:(-$fractionalWidth2)}
@@ -697,7 +697,7 @@ function _shellfloat_divide()
         isTesting=${__shellfloat_true}
     fi
 
-    if [[ $# -eq 0 ]]; then
+    if [[ $# -eq 0 || $# -gt 2 ]]; then
         echo "Usage: ${FUNCNAME[0]}  dividend  divisor"
         return $__shellfloat_SUCCESS
     elif [[ $# -eq 1 ]]; then
@@ -718,13 +718,13 @@ function _shellfloat_divide()
     _shellfloat_validateAndParse "$n1";  flags=$?
     _shellfloat_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n1"
         return $?
     fi
     _shellfloat_validateAndParse "$n2";  flags=$?
     _shellfloat_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
     if ((flags == __shellfloat_ILLEGAL_NUMBER)); then
-        _shellfloat_warn  ${__shellfloat_returnCodes[ILLEGAL_NUMBER]}  "$arg"
+        _shellfloat_warn  "${__shellfloat_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
         return $?
     fi
 
