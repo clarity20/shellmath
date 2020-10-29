@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 ###############################################################################
-# This script performs the same task as "e_demo.sh" but demonstrates a major
-# performance-optimization technique for shellfloat. The speedup is especially
-# significant when run on a Linux emulation layer such as Cygwin or minGW over
-# a Windows substrate.
+# This script performs the same task as "e_demo.sh" but implements a major
+# performance optimization. The speedup is especially noticeable when run on
+# a Linux emulation layer such as Cygwin or minGW over a Windows substrate
+# where the overhead of subshelling is quite significant.
 #
 # The speedup uses global storage space to simulate pass-and-return by
 # reference so that you can capture the side effects of a function call without
@@ -49,9 +49,9 @@ function run_algorithm()
 
     # Compute successive terms T(n) := T(n-1)/n and accumulate into e
     for ((n=1; n<=N; n++)); do
-time        _shellfloat_divide  $term  $n
+        _shellfloat_divide  $term  $n
         _shellfloat_getReturnValue term
-time        _shellfloat_add  $e  $term
+        _shellfloat_add  $e  $term
         _shellfloat_getReturnValue e
     done
 
