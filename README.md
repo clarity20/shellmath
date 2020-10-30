@@ -24,7 +24,7 @@ The ___extended___ API introduces one more function:
 ```
 
 This function optimizes away the need for ___$(___ subshelling ___)___ in order to capture `shellfloat`'s output.
-To use this feature, just be sure to set `__shellfloat_isVerbose=0` at the top
+To use this feature, just be sure to set `__shellfloat_isOptimized=1` at the top
 of your script. (You can find an example in `faster_e_demo.sh`.)
 
 Operands to the _shellfloat_ functions can be integers or floating-point 

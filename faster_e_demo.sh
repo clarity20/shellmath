@@ -10,7 +10,7 @@
 # reference so that you can capture the side effects of a function call without
 # writing to stdout and wrapping the call in a subshell. How to use:
 #
-#    Turn off  "__shellfloat_isVerbose"  as shown below.
+#    Turn on  "__shellfloat_isOptimized"  as shown below.
 #    Then instead of invoking  "mySum = $(_shellfloat_add  $x  $y)",
 #    call  "_shellfloat_add  $x  $y;  _shellfloat_getReturnValue  mySum".
 ###############################################################################
@@ -34,7 +34,7 @@ elif [[ ! "$1" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-__shellfloat_isVerbose=${__shellfloat_false}
+__shellfloat_isOptimized=${__shellfloat_true}
 
 
 function run_algorithm()

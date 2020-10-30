@@ -45,10 +45,10 @@ function _shellfloat_assert_functionReturn()
 
     args=("$@")
 
-    __shellfloat_isVerbose=${__shellfloat_false}
+    __shellfloat_isOptimized=${__shellfloat_true}
     "$func" "${args[@]}"
     returnCode=$?
-    __shellfloat_isVerbose=${__shellfloat_true}
+    __shellfloat_isOptimized=${__shellfloat_false}
 
     # Fetch the return value. In shellfloat, there should always be just one.
     local actualReturn

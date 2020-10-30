@@ -35,7 +35,7 @@ declare -A -r __shellfloat_numericTypes=(
 declare -r __shellfloat_true=1
 declare -r __shellfloat_false=0
 
-declare __shellfloat_isVerbose=${__shellfloat_true}
+declare __shellfloat_isOptimized=${__shellfloat_false}
 declare __shellfloat_didPrecalc=${__shellfloat_false}
 
 function _shellfloat_getReturnCode()
@@ -304,11 +304,11 @@ function _shellfloat_add()
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
-    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isOptimized == __shellfloat_false ))
 
     # Is the caller itself an arithmetic function?
     local isSubcall=${__shellfloat_false}
-    if [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]]; then
+    if [[ "${FUNCNAME[1]}" =~ shellfloat_(add|subtract|multiply|divide)$ ]]; then
         isSubcall=${__shellfloat_true}
     fi
 
@@ -491,7 +491,7 @@ function _shellfloat_subtract()
 {
     local n1="$1"
     local n2="$2"
-    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isOptimized == __shellfloat_false ))
 
     if ((! __shellfloat_didPrecalc)); then
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
@@ -536,11 +536,11 @@ function _shellfloat_multiply()
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
-    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isOptimized == __shellfloat_false ))
 
     # Is the caller itself an arithmetic function?
     local isSubcall=${__shellfloat_false}
-    if [[ "${FUNCNAME[1]}" =~ _(add|subtract|multiply|divide)$ ]]; then
+    if [[ "${FUNCNAME[1]}" =~ shellfloat_(add|subtract|multiply|divide)$ ]]; then
         isSubcall=${__shellfloat_true}
     fi
 
@@ -690,7 +690,7 @@ function _shellfloat_divide()
         _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
     fi
 
-    local isVerbose=$(( __shellfloat_isVerbose == __shellfloat_true ))
+    local isVerbose=$(( __shellfloat_isOptimized == __shellfloat_false ))
 
     local isTesting=${__shellfloat_false}
     if [[ "${FUNCNAME[1]}" == "_shellfloat_assert_functionReturn" ]]; then
