@@ -80,8 +80,9 @@ $ for n in {1..5}; do e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
 0m0.580s
 ```
 
-(When sizing up these timings, do keep in mind that every invocation of either script
-is exercising the shellfloat arithmetic subroutines 31 times.)
+(When sizing up these timings, do keep in mind that ___we are timing the
+computation of e from its Maclaurin polynomial. Every invocation of either
+script is exercising the shellfloat arithmetic subroutines 31 times.___)
 
 The comment header in `faster_e_demo.sh` explains the optimization and shows
 how to put this faster version to work for you.
