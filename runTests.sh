@@ -119,7 +119,7 @@ function _main()
     source assert.sh
     
     # Process the test file line-by-line using the above runTests() function
-    mapfile -t -c 1 -C _shellfloat_runTests < "${1:-testCases.in}"
+    mapfile -t -c 1 -C _shellfloat_runTests -O 1 < "${1:-testCases.in}"
     
     rm -f /tmp/shellfloat.tmp
     
