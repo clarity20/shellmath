@@ -104,7 +104,8 @@ function _shellfloat_runTests()
         # Run the command, being respectful of shell metacharacters
         fullCommand="${words[@]}"
         eval $fullCommand
-        echo $lineNumber: "$command"
+        _shellfloat_getReturnValue returnString
+        echo "$returnString" Line $lineNumber: "$command"
 
         # Empty the command buffer
         : > "$COMMAND_BUFFER"
@@ -113,11 +114,16 @@ function _shellfloat_runTests()
 }
 
 
-function _main()
+function _main()  #int argc, char *argv[] )    ;-)
 {
     source shellfloat.sh
     source assert.sh
-    
+
+    # Initialize certain globals. As "public" functions, the arithmetic
+    # functions need to do this themselves, but there are some "private"
+    # functions that will need this here if they are auto-tested.
+    _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+
     # Process the test file line-by-line using the above runTests() function
     mapfile -t -c 1 -C _shellfloat_runTests -O 1 < "${1:-testCases.in}"
     
