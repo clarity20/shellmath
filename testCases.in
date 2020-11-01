@@ -26,21 +26,21 @@ Code 2   getReturnCode ILLEGAL_NUMBER
 Code    2      validateAndParse NaN
 String    ""   validateAndParse NaN
 # Positive integers
-String  "4"    validateAndParse 4
+String  "4 0 0 0 0"    validateAndParse 4
 # Negative integers
-String    9    validateAndParse -9
+String  "9 0 1 0 0"    validateAndParse -9
 # Decimals
-String  "4 2"  validateAndParse 4.2
+String  "4 2 0 1 0"  validateAndParse 4.2
 # Negative decimals
-String "-4 2"  validateAndParse -4.2
+String "4 2 1 1 0"  validateAndParse -4.2
 # Scientific / exponential notation: Check all code branches
-String  "340000"   validateAndParse 3.4e5
-String  "344 4"    validateAndParse 3.444e2
-String  34567      validateAndParse 3.4567e4
-String  "0 003456" validateAndParse 3.456e-3
-String  "34 56"    validateAndParse 345.6e-1
-String  "0 23011"  validateAndParse 23.011e-2
-String  "23 011"   validateAndParse 23.011e0
+String  "340000 0 0 0 1" validateAndParse 3.4e5
+String  "344 4 0 1 1"    validateAndParse 3.444e2
+String  "34567 0 0 0 1"  validateAndParse 3.4567e4
+String  "0 003456 0 1 1" validateAndParse 3.456e-3
+String  "34 56 0 1 1"    validateAndParse 345.6e-1
+String  "0 23011 0 1 1"  validateAndParse 23.011e-2
+String  "23 011 0 1 1"   validateAndParse 23.011e0
 
 ####################
 # Tests for ADDITION
