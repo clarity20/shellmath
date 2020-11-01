@@ -72,7 +72,7 @@ function _shellfloat_assert_functionReturn()
             _shellfloat_setReturnValue  "ok   "
             return $__shellfloat_SUCCESS
         else
-            _shellfloat_setReturnValue "FAIL, "$returnCode" "
+            _shellfloat_setReturnValue "FAIL ($returnCode) "
             return $__shellfloat_FAIL
         fi
     fi
