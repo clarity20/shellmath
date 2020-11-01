@@ -6,18 +6,27 @@
 #
 # Usage:
 #
-#    source thisPath/shellfloat.sh
+#    source  _thisPath_/_thisFileName_
 #
 #    # Conventional method: call the APIs by subshelling
 #    mySum=$( _shellfloat_add 202.895 6.00311 )
 #    echo $mySum
 #
-#    # Faster method: use hidden globals to simulate a more flexible pass-and-return
+#    # Faster method: use hidden globals to simulate more flexible pass-and-return
 #    _shellfloat_add 44.2 -87
 #    _shellfloat_getReturnValue mySum
 #    echo $mySum
 # 
 ################################################################################
+
+
+################################################################################
+# Program constants
+################################################################################
+declare -A -r __shellfloat_numericTypes=(
+    [INTEGER]=0
+    [DECIMAL]=1
+)
 
 declare -A -r __shellfloat_returnCodes=(
     [SUCCESS]="0:Success"
@@ -26,23 +35,24 @@ declare -A -r __shellfloat_returnCodes=(
     [DIVIDE_BY_ZERO]="3:Divide by zero error"
 )
 
-declare -A -r __shellfloat_numericTypes=(
-    [INTEGER]=64
-    [DECIMAL]=32
-    [SCIENTIFIC]=16
-)
-
 declare -r __shellfloat_true=1
 declare -r __shellfloat_false=0
 
+
+################################################################################
+# Program state
+################################################################################
 declare __shellfloat_isOptimized=${__shellfloat_false}
 declare __shellfloat_didPrecalc=${__shellfloat_false}
 
+
+################################################################################
+# Error-handling utilities
+################################################################################
 function _shellfloat_getReturnCode()
 {
     local errorName="$1"
-    [[ "${__shellfloat_returnCodes[$errorName]}" =~ ^[0-9]+ ]]
-    return ${BASH_REMATCH[0]}
+    return ${__shellfloat_returnCodes[$errorName]%%:*}
 }
 
 function _shellfloat_warn()
@@ -81,20 +91,27 @@ function _shellfloat_handleError()
     else
         exit $returnCode
     fi
-
 }
 
 
+################################################################################
+# precalc()
+#
+# Pre-calculates certain global data and by setting the global variable
+# "__shellfloat_didPrecalc" records that this routine has been called. As an
+# optimization, the caller should check that global to prevent multiple
+################################################################################
 function _shellfloat_precalc()
 {
-    # Set "global constants" here
+    # Set a few global constants
     _shellfloat_getReturnCode SUCCESS; __shellfloat_SUCCESS=$?
+    _shellfloat_getReturnCode FAIL; __shellfloat_FAIL=$?
     _shellfloat_getReturnCode ILLEGAL_NUMBER; __shellfloat_ILLEGAL_NUMBER=$?
 
-    # Determine the decimal precision to which we can calculate accurately.
-    # To do this we probe for the value at which long-long-ints overflow.
-    # We test the 64-bit, 32-bit and 16-bit thresholds and set the precision
-    # so as to keep us safely below the applicable threshold
+    # Determine the decimal precision to which we can accurately calculate.
+    # To do this we probe for the threshold at which integers overflow and
+    # take the integer floor of that number's base-10 logarithm.
+    # We check the 64-bit, 32-bit and 16-bit thresholds only.
     if ((2**63 < 2**63-1)); then
         __shellfloat_precision=18
     elif ((2**31 < 2**31-1)); then
@@ -112,7 +129,6 @@ function _shellfloat_precalc()
 ################################################################################
 
 declare -a __shellfloat_storage
-declare -ir __shellfloat_storageSpace=8
 
 function _shellfloat_setReturnValues()
 {
@@ -121,26 +137,31 @@ function _shellfloat_setReturnValues()
     for ((_i=1; _i<=$#; _i++)); do
         __shellfloat_storage[_i]="${!_i}"
     done
+
+    __shellfloat_storage[0]=$#
 }
 
 function _shellfloat_getReturnValues()
 {
     declare -i _i
-    local evalstring
+    local evalString
 
     for ((_i=1; _i<=$#; _i++)); do
-        evalstring+=${!_i}="${__shellfloat_storage[_i]}"" "
+        evalString+=${!_i}="${__shellfloat_storage[_i]}"" "
     done
 
-    eval "$evalstring"
+    eval "$evalString"
 }
 
-function _shellfloat_setReturnValue() { __shellfloat_storage[1]="$1"; }
-
-function _shellfloat_getReturnValue() { eval "$1"="${__shellfloat_storage[1]}"; }
-
+function _shellfloat_setReturnValue() { __shellfloat_storage=(1 "$1"); }
+function _shellfloat_getReturnValue() { eval "$1"=\"${__shellfloat_storage[1]}\"; }
+function _shellfloat_getReturnValueCount() { eval "$1"=\"${__shellfloat_storage[0]}\"; }
 
 ################################################################################
+# validateAndParse(numericString)
+# Return Code:      SUCCESS or ILLEGAL_NUMBER
+# Return Signature: integerPart fractionalPart isNegative numericType isScientific
+#
 # Validate and parse arguments to the main arithmetic routines
 ################################################################################
 
@@ -291,10 +312,10 @@ function _shellfloat_numToScientific()
     _shellfloat_setReturnValue $scientific
 }
 
-################################################################################
-# The main arithmetic routines
-################################################################################
 
+################################################################################
+# _shellfloat_add (addend_1, addend_2)
+################################################################################
 function _shellfloat_add()
 {
     local n1="$1"
@@ -485,8 +506,10 @@ function _shellfloat_add()
     return $__shellfloat_SUCCESS
 }
 
-################################################################################
 
+################################################################################
+# subtract (subtrahend, minuend)
+################################################################################
 function _shellfloat_subtract()
 {
     local n1="$1"
@@ -525,8 +548,10 @@ function _shellfloat_subtract()
     return $?
 }
 
-################################################################################
 
+################################################################################
+# multiply (multiplicand, multiplier)
+################################################################################
 function _shellfloat_multiply()
 {
     local n1="$1"
@@ -677,8 +702,10 @@ function _shellfloat_multiply()
     return $__shellfloat_SUCCESS
 }
 
-################################################################################
 
+################################################################################
+# divide (dividend, divisor)
+################################################################################
 function _shellfloat_divide()
 {
     local n1="$1"

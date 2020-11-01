@@ -1,3 +1,7 @@
+###############################################################################
+# Internal test engine functions
+###############################################################################
+
 function _shellfloat_assert_returnCode()
 {
     _shellfloat_assert_functionReturn -c "$@"
@@ -6,22 +10,11 @@ function _shellfloat_assert_returnCode()
 
 function _shellfloat_assert_returnString()
 {
-    echo -n "$(_shellfloat_assert_functionReturn "$@")"
+    _shellfloat_assert_functionReturn "$@"
+#    _shellfloat_getReturnValue returnString
+#    echo -n "$returnString"
     return $?
 }
-
-
-function _shellfloat_assert_equal()
-{
-    if [[ $# != 2 ]]; then
-        echo USAGE: "${FUNCNAME[0]}" value1 value2
-        echo Two input arguments required.
-    fi
-}
-
-###############################################################################
-# Internal functions
-###############################################################################
 
 function _shellfloat_assert_functionReturn()
 {
@@ -45,32 +38,42 @@ function _shellfloat_assert_functionReturn()
 
     args=("$@")
 
+    # Exercise the function in optimized mode: run faster by avoiding
+    # subshelling. Optimized mode also suppresses dumping of function output to stdout.
     __shellfloat_isOptimized=${__shellfloat_true}
     "$func" "${args[@]}"
     returnCode=$?
     __shellfloat_isOptimized=${__shellfloat_false}
 
-    # Fetch the return value. In shellfloat, there should always be just one.
-    local actualReturn
-    _shellfloat_getReturnValue actualReturn
-
-    resultFormat="%-5s"
+    # Fetch the return value(s)
+    local numReturnValues
+    declare -a actualReturn
+    _shellfloat_getReturnValueCount numReturnValues
+    if ((numReturnValues == 1)); then
+        _shellfloat_getReturnValue actualReturn[0]
+    else
+        local _i evalString="_shellfloat_getReturnValues"
+        for ((_i=0; _i<numReturnValues; _i++)); do
+            evalString+=" actualReturn["$_i"]"
+        done
+        eval $evalString     # no quotes: drop trailing spaces
+    fi
 
     if [[ $mode == RETURN_STRING ]]; then
-        if [[ "$actualReturn" == "$expectedReturn" ]]; then
-            printf $resultFormat ok
-            return 0
+        if [[ "${actualReturn[*]}" == "$expectedReturn" ]]; then
+            _shellfloat_setReturnValue  "ok   "
+            return $__shellfloat_SUCCESS
         else
-            printf $resultFormat FAIL
-            return 1
+            _shellfloat_setReturnValue "FAIL (${actualReturn[*]}) "
+            return $__shellfloat_FAIL
         fi
     elif [[ $mode == RETURN_CODE ]]; then
         if [[ "$returnCode" == "$expectedReturn" ]]; then
-            printf $resultFormat ok
-            return 0
+            _shellfloat_setReturnValue  "ok   "
+            return $__shellfloat_SUCCESS
         else
-            printf $resultFormat FAIL
-            return 1
+            _shellfloat_setReturnValue "FAIL, "$returnCode" "
+            return $__shellfloat_FAIL
         fi
     fi
 
