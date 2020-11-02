@@ -3,8 +3,8 @@
 #    assertionType  expectedValue   functionUnderTest [args ... ]
 #
 # where assertionType is either of:
-#    Code      to indicate decimal return code
-#    String    to indicate the string generated as a side effect
+#    Code      to indicate the (bash-style) integer return code
+#    String    to indicate the string "printed" as a side effect
 #
 # and functionUnderTest is the function name
 # with the "_shellmath_" prefix removed.
