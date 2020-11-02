@@ -41,10 +41,10 @@ Addition and multiplication are of arbitrary arity; try this on for size:
 Subtraction and division, OTOH, are exclusively binary operations. 
 
 ## The demos
-For a gentler introduction to `shellmath` run the demo `e_demo.sh` 
+For a gentler introduction to `shellmath` run the demo `slower_e_demo.sh` 
 with a small whole-number argument, say 15:
 ```
-$ e_demo.sh 15
+$ slower_e_demo.sh 15
 e = 2.7182818284589936
 ```
 
@@ -72,7 +72,7 @@ $ for n in {1..5}; do faster_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2
 0m0.054s
 0m0.054s
 
-$ for n in {1..5}; do e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
+$ for n in {1..5}; do slower_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
 0m0.498s
 0m0.594s
 0m0.536s
@@ -127,7 +127,7 @@ performs the appropriate integer operations on the parts, and recombines the res
 (In the spirit of Bash, numerical overflow is silently ignored.)
 
 Because if we can get carrying, borrowing, place value, and the distributive
-law right, then the sky's the limit! As they say-- erm, as they ___said___ in Rome,
+law right, then the sky's the limit! As they say--erm, as they ___said___ in Rome,
 
         Ad astra per aspera.
 
