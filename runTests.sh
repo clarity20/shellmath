@@ -15,10 +15,6 @@ function _shellmath_runTests()
     local lineNumber=$1
     local text=$2
 
-    # Enable line continuation. Since this function is invoked with
-    # the mapfile builtin, we cannot access global storage, so we use the disk.
-    local COMMAND_BUFFER=/tmp/shellmath.tmp
-
     # Trim leading whitespace
     [[ $text =~ ^[$' \t']*(.*) ]]
     text=${BASH_REMATCH[1]}
@@ -31,7 +27,7 @@ function _shellmath_runTests()
     if [[ ${text:$((len-1))} == '\' ]]; then
 
         # Eat the continuation character and add to the buffer
-        echo -n "${text/%\\/ }" >> "$COMMAND_BUFFER"
+        __shellfloat_commandBuffer+="${text/%\\/ }"
         
         # Defer processing
         return
@@ -40,12 +36,8 @@ function _shellmath_runTests()
     else
 
         # Assemble the command
-        local command
-        if [[ -s "$COMMAND_BUFFER" ]]; then
-            command="$(<$COMMAND_BUFFER)$text"
-        else
-            command=$text
-        fi
+        local command=${__shellfloat_commandBuffer}${text}
+        __shellfloat_commandBuffer=""
 
         words=($command)
 
@@ -107,8 +99,6 @@ function _shellmath_runTests()
         _shellmath_getReturnValue returnString
         echo "$returnString" Line $lineNumber: "$command"
 
-        # Empty the command buffer
-        : > "$COMMAND_BUFFER"
     fi
 
 }
@@ -121,13 +111,11 @@ function _main()
 
     # Initialize certain globals. As "public" functions, the arithmetic
     # functions need to do this themselves, but there are some "private"
-    # functions that will need this here if they are auto-tested.
+    # functions that need this here when they are auto-tested.
     _shellmath_precalc; __shellmath_didPrecalc=$__shellmath_true
 
     # Process the test file line-by-line using the above runTests() function
     mapfile -t -c 1 -C _shellmath_runTests -O 1 < "${1:-testCases.in}"
-    
-    rm -f /tmp/shellmath.tmp
     
     exit 0
 }
