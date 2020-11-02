@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ###############################################################################
-# This script performs the same task as "e_demo.sh" but with a major
+# This script performs the same task as "slower_e_demo.sh" but with a major
 # performance optimization. The speedup is especially noticeable on GNU
 # emulation layers for Windows such as Cygwin and minGW, where the overhead
 # of subshelling is quite significant.
