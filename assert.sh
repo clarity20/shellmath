@@ -38,8 +38,8 @@ function _shellmath_assert_functionReturn()
 
     args=("$@")
 
-    # Exercise the function in optimized mode: run faster by avoiding
-    # subshelling. Optimized mode also suppresses dumping of function output to stdout.
+    # Exercise the function in optimized mode; it will run faster by avoiding
+    # subshelling. This also suppresses dumping of function output to stdout.
     __shellmath_isOptimized=${__shellmath_true}
     "$func" "${args[@]}"
     returnCode=$?
@@ -52,11 +52,12 @@ function _shellmath_assert_functionReturn()
     if ((numReturnValues == 1)); then
         _shellmath_getReturnValue actualReturn[0]
     else
+        # Multiple returns? Join them into one string
         local _i evalString="_shellmath_getReturnValues"
         for ((_i=0; _i<numReturnValues; _i++)); do
             evalString+=" actualReturn["$_i"]"
         done
-        eval $evalString     # no quotes: drop trailing spaces
+        eval $evalString
     fi
 
     if [[ $mode == RETURN_STRING ]]; then

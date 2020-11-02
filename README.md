@@ -1,5 +1,5 @@
-# Shellfloat
-Introducing floating-point arithmetic libraries for the Bash shell, because
+# Shellmath
+Introducing decimal arithmetic libraries for the Bash shell, because
 they said it couldn't be done... and because:
 
 .
@@ -27,8 +27,8 @@ This function optimizes away the need for ___$(___ subshelling ___)___ in order 
 To use this feature, just be sure to set `__shellmath_isOptimized=1` at the top
 of your script. (You can find an example in `faster_e_demo.sh`.)
 
-Operands to the _shellmath_ functions can be integers or floating-point 
-(decimal) numbers presented in either standard or scientific notation:
+Operands to the _shellmath_ functions can be integers or decimal
+numbers presented in either standard or scientific notation:
 ```
     _shellmath_add   1.009   4.223e-2
     _shellmath_getReturnValue   sum
@@ -88,14 +88,14 @@ The comment header in `faster_e_demo.sh` explains the optimization and shows
 how to put this faster version to work for you.
 
 You can find further discussion of shellmath's runtime efficiency
-[here](https://github.com/clarity20/shellmath/wiki/Shellfloat-and-runtime-efficiency).
+[here](https://github.com/clarity20/shellmath/wiki/Shellmath-and-runtime-efficiency).
 
 ## Background
 The Bash shell does not have built-in operators for decimal arithmetic, making it
 something of an oddity among well-known, contemporary programming languages. For the most part,
 practitioners in need of powerful computational building blocks have naturally opted
 for *other* languages and tools. Their widespread availability has diverted attention
-from the possibility of *implementing* floating-point in Bash and it's easy to assume
+from the possibility of *implementing* decimal arithmetic in Bash and it's easy to assume
 that this ***cannot*** be done:
 
 + From the indispensable _Bash FAQ_ (on _Greg's Wiki_): [How can I calculate with floating point numbers?](http://mywiki.wooledge.org/BashFAQ/022)  
@@ -135,4 +135,4 @@ law right, then the sky's the limit! As they say-- erm, as they ___said___ in Ro
 You can run your floating-point calculations directly in Bash!
 
 ## Please see also:
-[A short discussion on arbitrary precision and shellmath](https://github.com/clarity20/shellmath/wiki/Shellfloat-and-arbitrary-precision-arithmetic)
+[A short discussion on arbitrary precision and shellmath](https://github.com/clarity20/shellmath/wiki/Shellmath-and-arbitrary-precision-arithmetic)

@@ -99,7 +99,8 @@ function _shellmath_handleError()
 #
 # Pre-calculates certain global data and by setting the global variable
 # "__shellmath_didPrecalc" records that this routine has been called. As an
-# optimization, the caller should check that global to prevent multiple
+# optimization, the caller should check that global to prevent needless
+# invocations.
 ################################################################################
 function _shellmath_precalc()
 {
