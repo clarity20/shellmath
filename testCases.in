@@ -7,7 +7,7 @@
 #    String    to indicate the string generated as a side effect
 #
 # and functionUnderTest is the function name
-# with the "_shellfloat_" prefix removed.
+# with the "_shellmath_" prefix removed.
 ################################################################
 
 ################################

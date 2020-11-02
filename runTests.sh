@@ -10,14 +10,14 @@
 ###############################################################################
 
 # Process one line from the test cases file. Invoked below through mapfile.
-function _shellfloat_runTests()
+function _shellmath_runTests()
 {
     local lineNumber=$1
     local text=$2
 
     # Enable line continuation. Since this function is invoked with
     # the mapfile builtin, we cannot access global storage, so we use the disk.
-    local COMMAND_BUFFER=/tmp/shellfloat.tmp
+    local COMMAND_BUFFER=/tmp/shellmath.tmp
 
     # Trim leading whitespace
     [[ $text =~ ^[$' \t']*(.*) ]]
@@ -53,7 +53,7 @@ function _shellfloat_runTests()
         case ${words[0]} in
 
             Code)
-                words[0]=_shellfloat_assert_return${words[0]}
+                words[0]=_shellmath_assert_return${words[0]}
 
                 # Validate next word as a positive integer
                 if [[ ! "${words[1]}" =~ ^[0-9]+$ ]]; then
@@ -66,7 +66,7 @@ function _shellfloat_runTests()
                 ;;
 
             String)
-                words[0]=_shellfloat_assert_return${words[0]}
+                words[0]=_shellmath_assert_return${words[0]}
                 # Allow multiword arguments if quoted
                 if [[ ${words[1]} =~ ^\" ]]; then
                     if [[ ${words[1]} =~ \"$ ]]; then
@@ -94,8 +94,8 @@ function _shellfloat_runTests()
                 ;;
         esac
 
-        # Expand the next word to a shellfloat function name
-        words[nextWord]=_shellfloat_${words[nextWord]}
+        # Expand the next word to a shellmath function name
+        words[nextWord]=_shellmath_${words[nextWord]}
         if ! type -t "${words[nextWord]}" >/dev/null; then
             echo "FAIL line $lineNumber: Syntax error. Required: String|Code  value  operation  args..."
             return 3
@@ -104,7 +104,7 @@ function _shellfloat_runTests()
         # Run the command, being respectful of shell metacharacters
         fullCommand="${words[@]}"
         eval $fullCommand
-        _shellfloat_getReturnValue returnString
+        _shellmath_getReturnValue returnString
         echo "$returnString" Line $lineNumber: "$command"
 
         # Empty the command buffer
@@ -114,20 +114,20 @@ function _shellfloat_runTests()
 }
 
 
-function _main()  #int argc, char *argv[] )    ;-)
+function _main()
 {
-    source shellfloat.sh
+    source shellmath.sh
     source assert.sh
 
     # Initialize certain globals. As "public" functions, the arithmetic
     # functions need to do this themselves, but there are some "private"
     # functions that will need this here if they are auto-tested.
-    _shellfloat_precalc; __shellfloat_didPrecalc=$__shellfloat_true
+    _shellmath_precalc; __shellmath_didPrecalc=$__shellmath_true
 
     # Process the test file line-by-line using the above runTests() function
-    mapfile -t -c 1 -C _shellfloat_runTests -O 1 < "${1:-testCases.in}"
+    mapfile -t -c 1 -C _shellmath_runTests -O 1 < "${1:-testCases.in}"
     
-    rm -f /tmp/shellfloat.tmp
+    rm -f /tmp/shellmath.tmp
     
     exit 0
 }

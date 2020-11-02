@@ -7,52 +7,52 @@ they said it couldn't be done... and because:
 ![image info](./image.png)
 
 ## Quick-start guide
-Download this project and source the file `shellfloat.sh` into your shell script.
-Then fire away at the shellfloat API.
+Download this project and source the file `shellmath.sh` into your shell script.
+Then fire away at the shellmath API.
 
 The ___basic___ API looks like this:
 ```
-    _shellfloat_add        arg1   arg2  [...]  argN
-    _shellfloat_subtract   arg1   arg2
-    _shellfloat_multiply   arg1   arg2  [...]  argN
-    _shellfloat_divide     arg1   arg2
+    _shellmath_add        arg1   arg2  [...]  argN
+    _shellmath_subtract   arg1   arg2
+    _shellmath_multiply   arg1   arg2  [...]  argN
+    _shellmath_divide     arg1   arg2
 ```
 
 The ___extended___ API introduces one more function:
 ```
-    _shellfloat_getReturnValue   arg
+    _shellmath_getReturnValue   arg
 ```
 
-This function optimizes away the need for ___$(___ subshelling ___)___ in order to capture `shellfloat`'s output.
-To use this feature, just be sure to set `__shellfloat_isOptimized=1` at the top
+This function optimizes away the need for ___$(___ subshelling ___)___ in order to capture `shellmath`'s output.
+To use this feature, just be sure to set `__shellmath_isOptimized=1` at the top
 of your script. (You can find an example in `faster_e_demo.sh`.)
 
-Operands to the _shellfloat_ functions can be integers or floating-point 
+Operands to the _shellmath_ functions can be integers or floating-point 
 (decimal) numbers presented in either standard or scientific notation:
 ```
-    _shellfloat_add   1.009   4.223e-2
-    _shellfloat_getReturnValue   sum
+    _shellmath_add   1.009   4.223e-2
+    _shellmath_getReturnValue   sum
 ```
 Addition and multiplication are of arbitrary arity; try this on for size:
 ```
-    _shellfloat_multiply  1  2  3  4  5  6
-    _shellfloat_getReturnValue   sixFactorial
+    _shellmath_multiply  1  2  3  4  5  6
+    _shellmath_getReturnValue   sixFactorial
 ```
 Subtraction and division, OTOH, are exclusively binary operations. 
 
 ## The demos
-For a gentler introduction to `shellfloat` run the demo `e_demo.sh` 
+For a gentler introduction to `shellmath` run the demo `e_demo.sh` 
 with a small whole-number argument, say 15:
 ```
 $ e_demo.sh 15
 e = 2.7182818284589936
 ```
 
-This script uses a few `shellfloat` API calls to calculate *e*, the mathematical
+This script uses a few `shellmath` API calls to calculate *e*, the mathematical
 constant also known as [Euler's number](https://oeis.org/A001113). The argument 
 *15* tells the script to evaluate the *15th-degree* Maclaurin polynomial for *e*.
 (That's the Taylor polynomial centered at 0.) Take a look inside the script to
-see how it uses the `shellfloat` APIs.
+see how it uses the `shellmath` APIs.
 
 There is another demo script very much like this one but *different*, and the
 sensitive user can *feel* the difference. Try the following, but don't blink 
@@ -82,13 +82,13 @@ $ for n in {1..5}; do e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
 
 (When sizing up these timings, do keep in mind that ___we are timing the
 computation of e from its Maclaurin polynomial. Every invocation of either
-script is exercising the shellfloat arithmetic subroutines 31 times.___)
+script is exercising the shellmath arithmetic subroutines 31 times.___)
 
 The comment header in `faster_e_demo.sh` explains the optimization and shows
 how to put this faster version to work for you.
 
-You can find further discussion of shellfloat's runtime efficiency
-[here](https://github.com/clarity20/shellfloat/wiki/Shellfloat-and-runtime-efficiency).
+You can find further discussion of shellmath's runtime efficiency
+[here](https://github.com/clarity20/shellmath/wiki/Shellfloat-and-runtime-efficiency).
 
 ## Background
 The Bash shell does not have built-in operators for decimal arithmetic, making it
@@ -117,12 +117,12 @@ But finally, a glimmer of hope:
   on Stack Overflow.  
   This down-and-dirty milestone computes the decimal quotient of two integer arguments. At a casual
   glance, it seems to have drawn inspiration from the [Euclidean algorithm](https://mathworld.wolfram.com/EuclideanAlgorithm.html)
-  for computing GCDs, an entirely different approach than `shellfloat`'s.
+  for computing GCDs, an entirely different approach than `shellmath`'s.
 
-Please try `shellfloat` on for size and draw your own conclusions!
+Please try `shellmath` on for size and draw your own conclusions!
 
 ## How it works
-`shellfloat` splits decimal numbers into their integer and fractional parts,
+`shellmath` splits decimal numbers into their integer and fractional parts,
 performs the appropriate integer operations on the parts, and recombines the results.
 (In the spirit of Bash, numerical overflow is silently ignored.)
 
@@ -135,4 +135,4 @@ law right, then the sky's the limit! As they say-- erm, as they ___said___ in Ro
 You can run your floating-point calculations directly in Bash!
 
 ## Please see also:
-[A short discussion on arbitrary precision and shellfloat](https://github.com/clarity20/shellfloat/wiki/Shellfloat-and-arbitrary-precision-arithmetic)
+[A short discussion on arbitrary precision and shellmath](https://github.com/clarity20/shellmath/wiki/Shellfloat-and-arbitrary-precision-arithmetic)

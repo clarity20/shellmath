@@ -2,27 +2,27 @@
 # Internal test engine functions
 ###############################################################################
 
-function _shellfloat_assert_returnCode()
+function _shellmath_assert_returnCode()
 {
-    _shellfloat_assert_functionReturn -c "$@"
+    _shellmath_assert_functionReturn -c "$@"
     return $?
 }
 
-function _shellfloat_assert_returnString()
+function _shellmath_assert_returnString()
 {
-    _shellfloat_assert_functionReturn "$@"
-#    _shellfloat_getReturnValue returnString
+    _shellmath_assert_functionReturn "$@"
+#    _shellmath_getReturnValue returnString
 #    echo -n "$returnString"
     return $?
 }
 
-function _shellfloat_assert_functionReturn()
+function _shellmath_assert_functionReturn()
 {
     if [[ $# -lt 2 ]]; then
         echo 'USAGE: "${FUNCNAME[0]}" [-c] returnStringOrCode functionName [ functionArgs ... ]'
         echo "    By default, asserts against the string output by the function."
         echo "    Use -c to assert against the numeric return code instead."
-        return ${__shellfloat_returnCodes[FAIL]}
+        return ${__shellmath_returnCodes[FAIL]}
     fi
 
     if [[ "${1,,}" == '-c' ]]; then
@@ -40,19 +40,19 @@ function _shellfloat_assert_functionReturn()
 
     # Exercise the function in optimized mode: run faster by avoiding
     # subshelling. Optimized mode also suppresses dumping of function output to stdout.
-    __shellfloat_isOptimized=${__shellfloat_true}
+    __shellmath_isOptimized=${__shellmath_true}
     "$func" "${args[@]}"
     returnCode=$?
-    __shellfloat_isOptimized=${__shellfloat_false}
+    __shellmath_isOptimized=${__shellmath_false}
 
     # Fetch the return value(s)
     local numReturnValues
     declare -a actualReturn
-    _shellfloat_getReturnValueCount numReturnValues
+    _shellmath_getReturnValueCount numReturnValues
     if ((numReturnValues == 1)); then
-        _shellfloat_getReturnValue actualReturn[0]
+        _shellmath_getReturnValue actualReturn[0]
     else
-        local _i evalString="_shellfloat_getReturnValues"
+        local _i evalString="_shellmath_getReturnValues"
         for ((_i=0; _i<numReturnValues; _i++)); do
             evalString+=" actualReturn["$_i"]"
         done
@@ -61,19 +61,19 @@ function _shellfloat_assert_functionReturn()
 
     if [[ $mode == RETURN_STRING ]]; then
         if [[ "${actualReturn[*]}" == "$expectedReturn" ]]; then
-            _shellfloat_setReturnValue  "ok   "
-            return $__shellfloat_SUCCESS
+            _shellmath_setReturnValue  "ok   "
+            return $__shellmath_SUCCESS
         else
-            _shellfloat_setReturnValue "FAIL (${actualReturn[*]}) "
-            return $__shellfloat_FAIL
+            _shellmath_setReturnValue "FAIL (${actualReturn[*]}) "
+            return $__shellmath_FAIL
         fi
     elif [[ $mode == RETURN_CODE ]]; then
         if [[ "$returnCode" == "$expectedReturn" ]]; then
-            _shellfloat_setReturnValue  "ok   "
-            return $__shellfloat_SUCCESS
+            _shellmath_setReturnValue  "ok   "
+            return $__shellmath_SUCCESS
         else
-            _shellfloat_setReturnValue "FAIL ($returnCode) "
-            return $__shellfloat_FAIL
+            _shellmath_setReturnValue "FAIL ($returnCode) "
+            return $__shellmath_FAIL
         fi
     fi
 
