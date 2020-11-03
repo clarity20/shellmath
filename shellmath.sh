@@ -345,7 +345,7 @@ function _shellmath_add()
     elif ((argCount == 1)); then
         # Note the result as-is, print if running "normally", and return
         _shellmath_setReturnValue "$n1"
-        if (( isVerbose && ! isSubcall )); then echo "$n1"; fi
+        (( isVerbose && ! isSubcall )) && echo "$n1"
         return "$__shellmath_SUCCESS"
     elif ((argCount > 2)); then
         local recursiveReturn
@@ -392,8 +392,8 @@ function _shellmath_add()
 
     # Quick add & return for integer adds
     if ((type1==type2 && type1==__shellmath_numericTypes[INTEGER])); then
-        if ((isNegative1)); then ((integerPart1*=-1)); fi
-        if ((isNegative2)); then ((integerPart2*=-1)); fi
+        ((isNegative1)) && ((integerPart1*=-1))
+        ((isNegative2)) && ((integerPart2*=-1))
         local sum=$((integerPart1 + integerPart2))
         if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
             _shellmath_numToScientific $sum "" 
@@ -491,7 +491,7 @@ function _shellmath_add()
 
     # Touch up the numbers for display
     local sum
-    if ((fractionalSum < 0)); then fractionalSum=${fractionalSum:1}; fi
+    ((fractionalSum < 0)) && fractionalSum=${fractionalSum:1}
     if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
         _shellmath_numToScientific "$integerSum" "$fractionalSum"
         _shellmath_getReturnValue sum
@@ -530,7 +530,7 @@ function _shellmath_subtract()
     elif (( $# == 1 )); then
         # Note the value as-is and return
         _shellmath_setReturnValue "$n1"
-        if ((isVerbose)); then echo $n1; fi
+        ((isVerbose)) && echo "$n1"
         return "$__shellmath_SUCCESS"
     fi
 
@@ -580,8 +580,8 @@ function _shellmath_multiply()
         return "$__shellmath_SUCCESS"
     elif ((argCount == 1)); then
         # Note the value as-is and return
-        _shellmath_setReturnValue $n1
-        if (( isVerbose && ! isSubcall )); then echo $n1; fi
+        _shellmath_setReturnValue "$n1"
+        (( isVerbose && ! isSubcall )) && echo "$n1"
         return "$__shellmath_SUCCESS"
     elif ((argCount > 2)); then
         local recursiveReturn
@@ -628,8 +628,8 @@ function _shellmath_multiply()
 
     # Quick multiply & return for integer multiplies
     if ((type1==type2 && type1==__shellmath_numericTypes[INTEGER])); then
-        if ((isNegative1)); then ((integerPart1*=-1)); fi
-        if ((isNegative2)); then ((integerPart2*=-1)); fi
+        ((isNegative1)) && ((integerPart1*=-1))
+        ((isNegative2)) && ((integerPart2*=-1))
         local product=$((integerPart1 * integerPart2))
         if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
             _shellmath_numToScientific $product "" 
@@ -734,7 +734,7 @@ function _shellmath_divide()
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellmath_setReturnValue "$n1"
-        if ((isVerbose)); then echo $n1; fi
+        ((isVerbose)) && echo $n1
         return "$__shellmath_SUCCESS"
     fi
 
