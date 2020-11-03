@@ -9,7 +9,7 @@
 source shellmath.sh
 
 # Setting the '-t' flag will cause the script to time the algorithm
-if [[ "$1" -eq '-t' ]]; then
+if [[ "$1" == '-t' ]]; then
     do_timing=${__shellmath_true}
     shift
 fi

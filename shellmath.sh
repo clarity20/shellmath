@@ -230,9 +230,10 @@ function _shellmath_validateAndParse()
             # IOW, realign the integer and fractional parts. Separate with a space
             # so they can be returned as two separate values
             if ((exponent > 0)); then
+                local zeroCount
                 ((zeroCount = exponent - sigFracLength))
                 if ((zeroCount > 0)); then
-                    printf -v zeros "%0*s" $zeroCount 0
+                    printf -v zeros "%0*d" $zeroCount 0
                     n=${sigInteger}${sigFraction}${zeros}" 0"
                     numericType=${__shellmath_numericTypes[INTEGER]}
                 elif ((zeroCount < 0)); then
@@ -246,9 +247,10 @@ function _shellmath_validateAndParse()
                 return $returnCode
 
             elif ((exponent < 0)); then
+                local zeroCount
                 ((zeroCount = -exponent - sigIntLength))
                 if ((zeroCount > 0)); then
-                    printf -v zeros "%0*s" $zeroCount 0
+                    printf -v zeros "%0*d" $zeroCount 0
                     n="0 "${zeros}${sigInteger}${sigFraction}
                     numericType=${__shellmath_numericTypes[DECIMAL]}
                 elif ((zeroCount < 0)); then
@@ -308,7 +310,7 @@ function _shellmath_numToScientific()
     # Remove trailing zeros
     [[ $tail =~ ^.*[^0] ]]; tail=${BASH_REMATCH[0]:-0}
 
-    printf -v scientific "%s.%se%s" $head $tail $exponent
+    printf -v scientific "%d.%de%d" $head $tail $exponent
 
     _shellmath_setReturnValue $scientific
 }
@@ -336,15 +338,15 @@ function _shellmath_add()
 
     # Handle corner cases where argument count is not 2
     local argCount=$#
-    if [[ $argCount -eq 0 ]]; then
+    if ((argCount == 0)); then
         echo "Usage: ${FUNCNAME[0]}  addend_1  addend_2"
         return $__shellmath_SUCCESS
-    elif [[ $argCount -eq 1 ]]; then
+    elif ((argCount == 1)); then
         # Note the result as-is, print if running "normally", and return
         _shellmath_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $__shellmath_SUCCESS
-    elif [[ $argCount -gt 2 ]]; then
+    elif ((argCount > 2)); then
         local recursiveReturn
 
         # Use a binary recursion tree to add everything up
@@ -457,7 +459,7 @@ function _shellmath_add()
     if ((unsignedFracSumLength < unsignedFracLength)); then
         local lengthDiff=$((unsignedFracLength - unsignedFracSumLength))
         local zeroPrefix
-        printf -v zeroPrefix "%0*s" $lengthDiff 0
+        printf -v zeroPrefix "%0*d" $lengthDiff 0
         if ((fractionalSum < 0)); then
             fractionalSum="-"${zeroPrefix}${fractionalSum:1}
         else
@@ -521,10 +523,10 @@ function _shellmath_subtract()
         _shellmath_precalc; __shellmath_didPrecalc=$__shellmath_true
     fi
 
-    if [[ $# -eq 0 || $# -gt 2 ]]; then
+    if (( $# == 0 || $# == 2 )); then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
         return $__shellmath_SUCCESS
-    elif [[ $# -eq 1 ]]; then
+    elif (( $# == 1 )); then
         # Note the value as-is and return
         _shellmath_setReturnValue "$n1"
         if ((isVerbose)); then echo $n1; fi
@@ -572,15 +574,15 @@ function _shellmath_multiply()
 
     # Handle corner cases where argument count is not 2
     local argCount=$#
-    if [[ $argCount -eq 0 ]]; then
+    if ((argCount == 0)); then
         echo "Usage: ${FUNCNAME[0]}  factor_1  factor_2"
         return $__shellmath_SUCCESS
-    elif [[ $argCount -eq 1 ]]; then
+    elif ((argCount == 1)); then
         # Note the value as-is and return
         _shellmath_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
         return $__shellmath_SUCCESS
-    elif [[ $argCount -gt 2 ]]; then
+    elif ((argCount > 2)); then
         local recursiveReturn
 
         # Use a binary recursion tree to multiply everything out
@@ -652,7 +654,7 @@ function _shellmath_multiply()
     ((floatWidth = fractionalWidth1 + fractionalWidth2))
     ((floatProduct = 10#$fractionalPart1 * 10#$fractionalPart2))
     if ((${#floatProduct} < floatWidth)); then
-        printf -v floatProduct "%0*s" $floatWidth $floatProduct
+        printf -v floatProduct "%0*d" $floatWidth $floatProduct
     fi
 
     # Compute the inner products: First integer-multiply, then rescale
@@ -665,14 +667,14 @@ function _shellmath_multiply()
         local innerFloat1=${innerProduct1:(-$fractionalWidth2)}
         innerProduct1=${innerInt1}"."${innerFloat1}
     else
-        printf -v innerProduct1 "0.%0*s" $fractionalWidth2 $innerProduct1
+        printf -v innerProduct1 "0.%0*d" $fractionalWidth2 $innerProduct1
     fi
     if ((fractionalWidth1 <= ${#innerProduct2})); then
         local innerInt2=${innerProduct2:0:(-$fractionalWidth1)}
         local innerFloat2=${innerProduct2:(-$fractionalWidth1)}
         innerProduct2=${innerInt2}"."${innerFloat2}
     else
-        printf -v innerProduct2 "0.%0*s" $fractionalWidth1 $innerProduct2
+        printf -v innerProduct2 "0.%0*d" $fractionalWidth1 $innerProduct2
     fi
 
     # Combine the distributed parts
@@ -763,7 +765,7 @@ function _shellmath_divide()
     local rescaleFactor zeroCount zeroTail
     ((zeroCount = __shellmath_precision - ${#integerPart1} - ${#fractionalPart1}))
     ((rescaleFactor = __shellmath_precision - ${#integerPart1} - ${#fractionalPart2}))
-    printf -v zeroTail "%0*s" $zeroCount 0
+    printf -v zeroTail "%0*d" $zeroCount 0
 
     # Rescale and rewrite the fraction to be computed, and compute it
     numerator=${integerPart1}${fractionalPart1}${zeroTail}
@@ -772,7 +774,7 @@ function _shellmath_divide()
 
     # Rescale back
     if ((rescaleFactor >= ${#quotient})); then
-        printf -v quotient "0.%0*s" $rescaleFactor $quotient
+        printf -v quotient "0.%0*d" $rescaleFactor $quotient
     else
         quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
     fi
