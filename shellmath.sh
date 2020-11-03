@@ -523,7 +523,7 @@ function _shellmath_subtract()
         _shellmath_precalc; __shellmath_didPrecalc=$__shellmath_true
     fi
 
-    if (( $# == 0 || $# == 2 )); then
+    if (( $# == 0 || $# > 2 )); then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
         return $__shellmath_SUCCESS
     elif (( $# == 1 )); then
