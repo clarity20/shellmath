@@ -1,3 +1,4 @@
+#!/bin/env bash
 ################################################################################
 # shellmath.sh
 # Shell functions for floating-point arithmetic using only builtins
@@ -51,8 +52,8 @@ declare __shellmath_didPrecalc=${__shellmath_false}
 ################################################################################
 function _shellmath_getReturnCode()
 {
-    local errorName="$1"
-    return ${__shellmath_returnCodes[$errorName]%%:*}
+    local errorName=$1
+    return "${__shellmath_returnCodes[$errorName]%%:*}"
 }
 
 function _shellmath_warn()
@@ -87,9 +88,9 @@ function _shellmath_handleError()
     printf  "$msgTemplate" "${msgParameters[@]}"
 
     if [[ $returnDontExit == ${__shellmath_true} ]]; then
-        return $returnCode
+        return "$returnCode"
     else
-        exit $returnCode
+        exit "$returnCode"
     fi
 }
 
@@ -133,7 +134,7 @@ declare -a __shellmath_storage
 
 function _shellmath_setReturnValues()
 {
-    declare -i _i
+    local -i _i
 
     for ((_i=1; _i<=$#; _i++)); do
         __shellmath_storage[_i]="${!_i}"
@@ -144,7 +145,7 @@ function _shellmath_setReturnValues()
 
 function _shellmath_getReturnValues()
 {
-    declare -i _i
+    local -i _i
     local evalString
 
     for ((_i=1; _i<=$#; _i++)); do
@@ -186,7 +187,7 @@ function _shellmath_validateAndParse()
         fi
 
         _shellmath_setReturnValues $n 0 $isNegative $numericType $isScientific
-        return $returnCode
+        return "$returnCode"
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
@@ -202,7 +203,7 @@ function _shellmath_validateAndParse()
 
         _shellmath_setReturnValues $integerPart $fractionalPart \
                     $isNegative $numericType $isScientific
-        return $returnCode
+        return "$returnCode"
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
     elif [[ "$n" =~ (.*)[Ee](.*) ]]; then
@@ -244,7 +245,7 @@ function _shellmath_validateAndParse()
                     numericType=${__shellmath_numericTypes[INTEGER]}
                 fi
                 _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
-                return $returnCode
+                return "$returnCode"
 
             elif ((exponent < 0)); then
                 local zeroCount
@@ -261,35 +262,35 @@ function _shellmath_validateAndParse()
                     numericType=${__shellmath_numericTypes[DECIMAL]}
                 fi
                 _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
-                return $returnCode
+                return "$returnCode"
 
             else
                 # exponent == 0 means the number is already aligned as desired
                 n=${sigInteger}" "${sigFraction}
                 numericType=${__shellmath_numericTypes[DECIMAL]}
                 _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
-                return $returnCode
+                return "$returnCode"
             fi
 
         # Reject strings like xxx[Ee]yyy where xxx, yyy are not valid numbers
         else
             ((returnCode = __shellmath_ILLEGAL_NUMBER))
             _shellmath_setReturnValues ""
-            return $returnCode
+            return "$returnCode"
         fi
 
     # Reject everything else
     else
         ((returnCode = __shellmath_ILLEGAL_NUMBER))
         _shellmath_setReturnValues ""
-        return $returnCode
+        return "$returnCode"
     fi
 }
 
 
 function _shellmath_numToScientific()
 {
-    local integerPart="$1" fractionalPart="$2"
+    local integerPart=$1 fractionalPart=$2
     local exponent head tail scientific
 
     if ((integerPart > 0)); then
@@ -340,35 +341,35 @@ function _shellmath_add()
     local argCount=$#
     if ((argCount == 0)); then
         echo "Usage: ${FUNCNAME[0]}  addend_1  addend_2"
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     elif ((argCount == 1)); then
         # Note the result as-is, print if running "normally", and return
-        _shellmath_setReturnValue $n1
-        if (( isVerbose && ! isSubcall )); then echo $n1; fi
-        return $__shellmath_SUCCESS
+        _shellmath_setReturnValue "$n1"
+        if (( isVerbose && ! isSubcall )); then echo "$n1"; fi
+        return "$__shellmath_SUCCESS"
     elif ((argCount > 2)); then
         local recursiveReturn
 
         # Use a binary recursion tree to add everything up
         # 1) left branch
-        _shellmath_add ${@:1:$((argCount/2))}; recursiveReturn=$?
+        _shellmath_add "${@:1:$((argCount/2))}"; recursiveReturn=$?
         _shellmath_getReturnValue n1
         if (( recursiveReturn != __shellmath_SUCCESS )); then
-            _shellmath_setReturnValue $n1
-            return $recursiveReturn
+            _shellmath_setReturnValue "$n1"
+            return "$recursiveReturn"
         fi
         # 2) right branch
-        _shellmath_add ${@:$((argCount/2+1))}; recursiveReturn=$?
+        _shellmath_add "${@:$((argCount/2+1))}"; recursiveReturn=$?
         _shellmath_getReturnValue n2
         if (( recursiveReturn != __shellmath_SUCCESS )); then
-            _shellmath_setReturnValue $n2
-            return $recursiveReturn
+            _shellmath_setReturnValue "$n2"
+            return "$recursiveReturn"
         fi
         # 3) head node
         _shellmath_add $n1 $n2; recursiveReturn=$?
         _shellmath_getReturnValue n2
-        _shellmath_setReturnValue $n2
-        return $recursiveReturn
+        _shellmath_setReturnValue "$n2"
+        return "$recursiveReturn"
     fi
 
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
@@ -402,12 +403,12 @@ function _shellmath_add()
         if (( isVerbose && ! isSubcall )); then
             echo $sum
         fi
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     fi
 
     # Right-pad both fractional parts with zeros to the same length
-    declare fractionalLen1=${#fractionalPart1}
-    declare fractionalLen2=${#fractionalPart2}
+    local fractionalLen1=${#fractionalPart1}
+    local fractionalLen2=${#fractionalPart2}
     if ((fractionalLen1 > fractionalLen2)); then
         # Use printf to zero-pad. This avoids mathematical side effects.
         printf -v fractionalPart2 %-*s $fractionalLen1 $fractionalPart2
@@ -416,7 +417,7 @@ function _shellmath_add()
         printf -v fractionalPart1 %-*s $fractionalLen2 $fractionalPart1
         fractionalPart1=${fractionalPart1// /0}
     fi
-    declare unsignedFracLength=${#fractionalPart1}
+    local unsignedFracLength=${#fractionalPart1}
 
     # Implement a sign convention that will enable us to detect carries by
     # comparing string lengths of addends and sums: propagate the sign across
@@ -430,8 +431,8 @@ function _shellmath_add()
         integerPart2="-"$integerPart2
     fi
 
-    declare integerSum=0      # To allow string manipulation, do not declare "-i"
-    declare fractionalSum=0
+    local integerSum=0
+    local fractionalSum=0
 
     ((integerSum = integerPart1+integerPart2))
 
@@ -506,7 +507,7 @@ function _shellmath_add()
         echo $sum
     fi
 
-    return $__shellmath_SUCCESS
+    return "$__shellmath_SUCCESS"
 }
 
 
@@ -525,12 +526,12 @@ function _shellmath_subtract()
 
     if (( $# == 0 || $# > 2 )); then
         echo "Usage: ${FUNCNAME[0]}  subtrahend  minuend"
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     elif (( $# == 1 )); then
         # Note the value as-is and return
         _shellmath_setReturnValue "$n1"
         if ((isVerbose)); then echo $n1; fi
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     fi
 
     # Symbolically negate the second argument
@@ -576,35 +577,35 @@ function _shellmath_multiply()
     local argCount=$#
     if ((argCount == 0)); then
         echo "Usage: ${FUNCNAME[0]}  factor_1  factor_2"
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     elif ((argCount == 1)); then
         # Note the value as-is and return
         _shellmath_setReturnValue $n1
         if (( isVerbose && ! isSubcall )); then echo $n1; fi
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     elif ((argCount > 2)); then
         local recursiveReturn
 
         # Use a binary recursion tree to multiply everything out
         # 1) left branch
-        _shellmath_multiply ${@:1:$((argCount/2))}; recursiveReturn=$?
+        _shellmath_multiply "${@:1:$((argCount/2))}"; recursiveReturn=$?
         _shellmath_getReturnValue n1
         if (( recursiveReturn != __shellmath_SUCCESS )); then
-            _shellmath_setReturnValue $n1
-            return $recursiveReturn
+            _shellmath_setReturnValue "$n1"
+            return "$recursiveReturn"
         fi
         # 2) right branch
-        _shellmath_multiply ${@:$((argCount/2+1))}; recursiveReturn=$?
+        _shellmath_multiply "${@:$((argCount/2+1))}"; recursiveReturn=$?
         _shellmath_getReturnValue n2
         if (( recursiveReturn != __shellmath_SUCCESS )); then
-            _shellmath_setReturnValue $n2
-            return $recursiveReturn
+            _shellmath_setReturnValue "$n2"
+            return "$recursiveReturn"
         fi
         # 3) head node
         _shellmath_multiply $n1 $n2; recursiveReturn=$?
         _shellmath_getReturnValue n2
-        _shellmath_setReturnValue $n2
-        return $recursiveReturn
+        _shellmath_setReturnValue "$n2"
+        return "$recursiveReturn"
     fi
 
     local integerPart1  fractionalPart1  integerPart2  fractionalPart2
@@ -638,13 +639,13 @@ function _shellmath_multiply()
         if (( isVerbose && ! isSubcall )); then
             echo $product
         fi
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     fi
 
     # The product has four components per the distributive law
-    declare intProduct floatProduct innerProduct1 innerProduct2
+    local intProduct floatProduct innerProduct1 innerProduct2
     # Widths of the decimal parts
-    declare floatWidth fractionalWidth1 fractionalWidth2
+    local floatWidth fractionalWidth1 fractionalWidth2
 
     # Compute the integer and floating-point components
     ((intProduct = integerPart1 * integerPart2))
@@ -702,7 +703,7 @@ function _shellmath_multiply()
         echo $product
     fi
 
-    return $__shellmath_SUCCESS
+    return "$__shellmath_SUCCESS"
 }
 
 
@@ -729,12 +730,12 @@ function _shellmath_divide()
 
     if [[ $# -eq 0 || $# -gt 2 ]]; then
         echo "Usage: ${FUNCNAME[0]}  dividend  divisor"
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
-        _shellmath_setReturnValue $n1
+        _shellmath_setReturnValue "$n1"
         if ((isVerbose)); then echo $n1; fi
-        return $__shellmath_SUCCESS
+        return "$__shellmath_SUCCESS"
     fi
 
     # Throw error on divide by zero
@@ -805,6 +806,6 @@ function _shellmath_divide()
         echo $quotient
     fi
 
-    return $__shellmath_SUCCESS
+    return "$__shellmath_SUCCESS"
 }
 
