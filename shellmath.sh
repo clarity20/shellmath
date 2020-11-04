@@ -36,9 +36,10 @@ declare -A -r __shellmath_returnCodes=(
     [DIVIDE_BY_ZERO]="3:Divide by zero error"
 )
 
-declare -r __shellmath_true=1
-declare -r __shellmath_false=0
+declare -r -i __shellmath_true=1
+declare -r -i __shellmath_false=0
 
+declare __shellmath_SUCCESS  __shellmath_FAIL  __shellmath_ILLEGAL_NUMBER
 
 ################################################################################
 # Program state
@@ -84,10 +85,10 @@ function _shellmath_handleError()
     shift
     
     # Display error msg, making parameter substitutions as needed
-    msgParameters="$@"
+    msgParameters="$*"
     printf  "$msgTemplate" "${msgParameters[@]}"
 
-    if [[ $returnDontExit == ${__shellmath_true} ]]; then
+    if ((returnDontExit)); then
         return "$returnCode"
     else
         exit "$returnCode"
@@ -186,7 +187,7 @@ function _shellmath_validateAndParse()
             n=${n:1}
         fi
 
-        _shellmath_setReturnValues $n 0 $isNegative $numericType $isScientific
+        _shellmath_setReturnValues "$n" 0 $isNegative "$numericType" $isScientific
         return "$returnCode"
 
     # Accept decimals: leading digits (optional), decimal point, trailing digits
@@ -201,8 +202,8 @@ function _shellmath_validateAndParse()
             n=${n:1}
         fi
 
-        _shellmath_setReturnValues $integerPart $fractionalPart \
-                    $isNegative $numericType $isScientific
+        _shellmath_setReturnValues "$integerPart" "$fractionalPart" \
+                    $isNegative "$numericType" $isScientific
         return "$returnCode"
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
@@ -231,10 +232,10 @@ function _shellmath_validateAndParse()
             # IOW, realign the integer and fractional parts. Separate with a space
             # so they can be returned as two separate values
             if ((exponent > 0)); then
-                local zeroCount
+                local zeroCount integer fraction
                 ((zeroCount = exponent - sigFracLength))
                 if ((zeroCount > 0)); then
-                    printf -v zeros "%0*d" $zeroCount 0
+                    printf -v zeros "%0*d" "$zeroCount" 0
                     n=${sigInteger}${sigFraction}${zeros}" 0"
                     numericType=${__shellmath_numericTypes[INTEGER]}
                 elif ((zeroCount < 0)); then
@@ -244,14 +245,15 @@ function _shellmath_validateAndParse()
                     n=${sigInteger}${sigFraction}" 0"
                     numericType=${__shellmath_numericTypes[INTEGER]}
                 fi
-                _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
+                integer=${n% *}; fraction=${n#* }
+                _shellmath_setReturnValues "$integer" "$fraction" $isNegative "$numericType" $isScientific
                 return "$returnCode"
 
             elif ((exponent < 0)); then
-                local zeroCount
+                local zeroCount integer fraction
                 ((zeroCount = -exponent - sigIntLength))
                 if ((zeroCount > 0)); then
-                    printf -v zeros "%0*d" $zeroCount 0
+                    printf -v zeros "%0*d" "$zeroCount" 0
                     n="0 "${zeros}${sigInteger}${sigFraction}
                     numericType=${__shellmath_numericTypes[DECIMAL]}
                 elif ((zeroCount < 0)); then
@@ -261,14 +263,14 @@ function _shellmath_validateAndParse()
                     n="0 "${sigInteger}${sigFraction}
                     numericType=${__shellmath_numericTypes[DECIMAL]}
                 fi
-                _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
+                integer=${n% *}; fraction=${n#* }
+                _shellmath_setReturnValues "$integer" "$fraction" $isNegative "$numericType" $isScientific
                 return "$returnCode"
 
             else
                 # exponent == 0 means the number is already aligned as desired
-                n=${sigInteger}" "${sigFraction}
                 numericType=${__shellmath_numericTypes[DECIMAL]}
-                _shellmath_setReturnValues ${n} $isNegative $numericType $isScientific
+                _shellmath_setReturnValues "$sigInteger" "$sigFraction" $isNegative "$numericType" $isScientific
                 return "$returnCode"
             fi
 
@@ -311,9 +313,9 @@ function _shellmath_numToScientific()
     # Remove trailing zeros
     [[ $tail =~ ^.*[^0] ]]; tail=${BASH_REMATCH[0]:-0}
 
-    printf -v scientific "%d.%de%d" $head $tail $exponent
+    printf -v scientific "%d.%de%d" "$head" "$tail" "$exponent"
 
-    _shellmath_setReturnValue $scientific
+    _shellmath_setReturnValue "$scientific"
 }
 
 
@@ -366,7 +368,7 @@ function _shellmath_add()
             return "$recursiveReturn"
         fi
         # 3) head node
-        _shellmath_add $n1 $n2; recursiveReturn=$?
+        _shellmath_add "$n1" "$n2"; recursiveReturn=$?
         _shellmath_getReturnValue n2
         _shellmath_setReturnValue "$n2"
         return "$recursiveReturn"
@@ -401,7 +403,7 @@ function _shellmath_add()
         fi
         _shellmath_setReturnValue $sum
         if (( isVerbose && ! isSubcall )); then
-            echo $sum
+            echo "$sum"
         fi
         return "$__shellmath_SUCCESS"
     fi
@@ -411,10 +413,10 @@ function _shellmath_add()
     local fractionalLen2=${#fractionalPart2}
     if ((fractionalLen1 > fractionalLen2)); then
         # Use printf to zero-pad. This avoids mathematical side effects.
-        printf -v fractionalPart2 %-*s $fractionalLen1 $fractionalPart2
+        printf -v fractionalPart2 %-*s "$fractionalLen1" "$fractionalPart2"
         fractionalPart2=${fractionalPart2// /0}
     elif ((fractionalLen2 > fractionalLen1)); then
-        printf -v fractionalPart1 %-*s $fractionalLen2 $fractionalPart1
+        printf -v fractionalPart1 %-*s "$fractionalLen2" "$fractionalPart1"
         fractionalPart1=${fractionalPart1// /0}
     fi
     local unsignedFracLength=${#fractionalPart1}
@@ -460,7 +462,7 @@ function _shellmath_add()
     if ((unsignedFracSumLength < unsignedFracLength)); then
         local lengthDiff=$((unsignedFracLength - unsignedFracSumLength))
         local zeroPrefix
-        printf -v zeroPrefix "%0*d" $lengthDiff 0
+        printf -v zeroPrefix "%0*d" "$lengthDiff" 0
         if ((fractionalSum < 0)); then
             fractionalSum="-"${zeroPrefix}${fractionalSum:1}
         else
@@ -496,7 +498,7 @@ function _shellmath_add()
         _shellmath_numToScientific "$integerSum" "$fractionalSum"
         _shellmath_getReturnValue sum
     elif ((fractionalSum)); then
-        printf -v sum "%s.%s" $integerSum $fractionalSum
+        printf -v sum "%s.%s" "$integerSum" "$fractionalSum"
     else
         sum=$integerSum
     fi
@@ -504,7 +506,7 @@ function _shellmath_add()
     # Note the result, print if running "normally", and return
     _shellmath_setReturnValue $sum
     if (( isVerbose && ! isSubcall )); then
-        echo $sum
+        echo "$sum"
     fi
 
     return "$__shellmath_SUCCESS"
@@ -546,7 +548,7 @@ function _shellmath_subtract()
     _shellmath_add "$n1" "$n2"
     _shellmath_getReturnValue difference
     if ((isVerbose)); then
-        echo $difference
+        echo "$difference"
     fi
 
     return $?
@@ -602,7 +604,7 @@ function _shellmath_multiply()
             return "$recursiveReturn"
         fi
         # 3) head node
-        _shellmath_multiply $n1 $n2; recursiveReturn=$?
+        _shellmath_multiply "$n1" "$n2"; recursiveReturn=$?
         _shellmath_getReturnValue n2
         _shellmath_setReturnValue "$n2"
         return "$recursiveReturn"
@@ -637,7 +639,7 @@ function _shellmath_multiply()
         fi
         _shellmath_setReturnValue $product
         if (( isVerbose && ! isSubcall )); then
-            echo $product
+            echo "$product"
         fi
         return "$__shellmath_SUCCESS"
     fi
@@ -655,7 +657,7 @@ function _shellmath_multiply()
     ((floatWidth = fractionalWidth1 + fractionalWidth2))
     ((floatProduct = 10#$fractionalPart1 * 10#$fractionalPart2))
     if ((${#floatProduct} < floatWidth)); then
-        printf -v floatProduct "%0*d" $floatWidth $floatProduct
+        printf -v floatProduct "%0*d" "$floatWidth" "$floatProduct"
     fi
 
     # Compute the inner products: First integer-multiply, then rescale
@@ -668,22 +670,22 @@ function _shellmath_multiply()
         local innerFloat1=${innerProduct1:(-$fractionalWidth2)}
         innerProduct1=${innerInt1}"."${innerFloat1}
     else
-        printf -v innerProduct1 "0.%0*d" $fractionalWidth2 $innerProduct1
+        printf -v innerProduct1 "0.%0*d" "$fractionalWidth2" "$innerProduct1"
     fi
     if ((fractionalWidth1 <= ${#innerProduct2})); then
         local innerInt2=${innerProduct2:0:(-$fractionalWidth1)}
         local innerFloat2=${innerProduct2:(-$fractionalWidth1)}
         innerProduct2=${innerInt2}"."${innerFloat2}
     else
-        printf -v innerProduct2 "0.%0*d" $fractionalWidth1 $innerProduct2
+        printf -v innerProduct2 "0.%0*d" "$fractionalWidth1" "$innerProduct2"
     fi
 
     # Combine the distributed parts
     local innerSum outerSum product
-    _shellmath_add  $innerProduct1  $innerProduct2
+    _shellmath_add  "$innerProduct1"  "$innerProduct2"
     _shellmath_getReturnValue innerSum
     outerSum=${intProduct}"."${floatProduct}
-    _shellmath_add  $innerSum  $outerSum
+    _shellmath_add  "$innerSum"  "$outerSum"
     _shellmath_getReturnValue product
 
     # Determine the sign of the product
@@ -700,7 +702,7 @@ function _shellmath_multiply()
     # Note the result, print if running "normally", and return
     _shellmath_setReturnValue $product
     if (( isVerbose && ! isSubcall )); then
-        echo $product
+        echo "$product"
     fi
 
     return "$__shellmath_SUCCESS"
@@ -734,13 +736,13 @@ function _shellmath_divide()
     elif [[ $# -eq 1 ]]; then
         # Note the value as-is and return
         _shellmath_setReturnValue "$n1"
-        ((isVerbose)) && echo $n1
+        ((isVerbose)) && echo "$n1"
         return "$__shellmath_SUCCESS"
     fi
 
     # Throw error on divide by zero
     if ((n2 == 0)); then
-        _shellmath_warn  ${__shellmath_returnCodes[DIVIDE_BY_ZERO]}  "$arg"
+        _shellmath_warn  "${__shellmath_returnCodes[DIVIDE_BY_ZERO]}"  "$n2"
         return $?
     fi
 
@@ -766,7 +768,7 @@ function _shellmath_divide()
     local rescaleFactor zeroCount zeroTail
     ((zeroCount = __shellmath_precision - ${#integerPart1} - ${#fractionalPart1}))
     ((rescaleFactor = __shellmath_precision - ${#integerPart1} - ${#fractionalPart2}))
-    printf -v zeroTail "%0*d" $zeroCount 0
+    printf -v zeroTail "%0*d" "$zeroCount" 0
 
     # Rescale and rewrite the fraction to be computed, and compute it
     numerator=${integerPart1}${fractionalPart1}${zeroTail}
@@ -775,7 +777,7 @@ function _shellmath_divide()
 
     # Rescale back
     if ((rescaleFactor >= ${#quotient})); then
-        printf -v quotient "0.%0*d" $rescaleFactor $quotient
+        printf -v quotient "0.%0*d" "$rescaleFactor" "$quotient"
     else
         quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
     fi
@@ -801,9 +803,9 @@ function _shellmath_divide()
     fi
 
     # Note the result, print if running "normally", and return
-    _shellmath_setReturnValue $quotient
+    _shellmath_setReturnValue "$quotient"
     if ((isVerbose)); then
-        echo $quotient
+        echo "$quotient"
     fi
 
     return "$__shellmath_SUCCESS"
