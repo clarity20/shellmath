@@ -1,3 +1,4 @@
+#!/bin/env bash
 ###############################################################################
 # Internal test engine functions
 ###############################################################################
@@ -11,18 +12,16 @@ function _shellmath_assert_returnCode()
 function _shellmath_assert_returnString()
 {
     _shellmath_assert_functionReturn "$@"
-#    _shellmath_getReturnValue returnString
-#    echo -n "$returnString"
     return $?
 }
 
 function _shellmath_assert_functionReturn()
 {
     if [[ $# -lt 2 ]]; then
-        echo 'USAGE: "${FUNCNAME[0]}" [-c] returnStringOrCode functionName [ functionArgs ... ]'
+        echo "USAGE: ${FUNCNAME[0]} [-c] returnStringOrCode functionName [ functionArgs ... ]"
         echo "    By default, asserts against the string output by the function."
         echo "    Use -c to assert against the numeric return code instead."
-        return ${__shellmath_returnCodes[FAIL]}
+        return "${__shellmath_returnCodes[FAIL]}"
     fi
 
     if [[ "${1,,}" == '-c' ]]; then
@@ -55,26 +54,26 @@ function _shellmath_assert_functionReturn()
         # Multiple returns? Join them into one string
         local _i evalString="_shellmath_getReturnValues"
         for ((_i=0; _i<numReturnValues; _i++)); do
-            evalString+=" actualReturn["$_i"]"
+            evalString+=" actualReturn[$_i]"
         done
-        eval $evalString
+        eval "$evalString"
     fi
 
     if [[ $mode == RETURN_STRING ]]; then
         if [[ "${actualReturn[*]}" == "$expectedReturn" ]]; then
             _shellmath_setReturnValue  "ok   "
-            return $__shellmath_SUCCESS
+            return "$__shellmath_SUCCESS"
         else
             _shellmath_setReturnValue "FAIL (${actualReturn[*]}) "
-            return $__shellmath_FAIL
+            return "$__shellmath_FAIL"
         fi
     elif [[ $mode == RETURN_CODE ]]; then
         if [[ "$returnCode" == "$expectedReturn" ]]; then
             _shellmath_setReturnValue  "ok   "
-            return $__shellmath_SUCCESS
+            return "$__shellmath_SUCCESS"
         else
             _shellmath_setReturnValue "FAIL ($returnCode) "
-            return $__shellmath_FAIL
+            return "$__shellmath_FAIL"
         fi
     fi
 

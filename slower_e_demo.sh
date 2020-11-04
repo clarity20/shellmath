@@ -37,8 +37,8 @@ function run_algorithm()
 
     # Compute successive terms T(n) := T(n-1)/n and accumulate into e
     for ((n=1; n<=N; n++)); do
-        term=$(_shellmath_divide  $term  $n)
-        e=$(_shellmath_add  $e  $term)
+        term=$(_shellmath_divide  "$term"  "$n")
+        e=$(_shellmath_add  "$e"  "$term")
     done
 
     echo "e = $e"

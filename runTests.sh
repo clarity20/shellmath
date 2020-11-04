@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/env bash
 
 ###############################################################################
 # runTests.sh
@@ -49,7 +49,7 @@ function _shellmath_runTests()
 
                 # Validate next word as a positive integer
                 if [[ ! "${words[1]}" =~ ^[0-9]+$ ]]; then
-                    echo Line: $lineNumber: Command "$command"
+                    echo Line: "$lineNumber": Command "$command"
                     echo FAIL: \"Code\" requires integer return code
                     return 1
                 else
@@ -80,7 +80,7 @@ function _shellmath_runTests()
                 ;;
 
             *)
-                echo Line $lineNumber: Command "$command"
+                echo Line "$lineNumber": Command "$command"
                 echo FAIL: Code or String indicator required
                 return 2
                 ;;
@@ -94,10 +94,11 @@ function _shellmath_runTests()
         fi
 
         # Run the command, being respectful of shell metacharacters
-        fullCommand="${words[@]}"
-        eval $fullCommand
+        fullCommand="${words[*]}"
+        eval "$fullCommand"
+        local returnString
         _shellmath_getReturnValue returnString
-        echo "$returnString" Line $lineNumber: "$command"
+        echo "$returnString" Line "$lineNumber": "$command"
 
     fi
 
