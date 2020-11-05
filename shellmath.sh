@@ -73,6 +73,7 @@ function _shellmath_exit()
 function _shellmath_handleError()
 {
     # Hidden option "-r" causes return instead of exit
+    local returnDontExit=$__shellmath_false
     if [[ "$1" == "-r" ]]; then
         returnDontExit=${__shellmath_true}
         shift
@@ -471,7 +472,7 @@ function _shellmath_add()
     fi
 
     # Carry a digit from fraction to integer if required
-    if ((fractionalSum!=0 && unsignedFracSumLength > unsignedFracLength)); then
+    if ((10#$fractionalSum!=0 && unsignedFracSumLength > unsignedFracLength)); then
         local carryAmount
         ((carryAmount=isNegative1?-1:1))
         ((integerSum += carryAmount))
@@ -480,24 +481,24 @@ function _shellmath_add()
     fi
 
     # Resolve sign discrepancies between the partial sums
-    if ((integerSum < 0 && fractionalSum > 0)); then
+    if ((integerSum < 0 && 10#$fractionalSum > 0)); then
         ((integerSum += 1))
-        ((fractionalSum = 10**unsignedFracSumLength - fractionalSum))
-    elif ((integerSum > 0 && fractionalSum < 0)); then
+        ((fractionalSum = 10**unsignedFracSumLength - 10#$fractionalSum))
+    elif ((integerSum > 0 && 10#$fractionalSum < 0)); then
         ((integerSum -= 1))
-        ((fractionalSum = 10**unsignedFracSumLength + fractionalSum))
-    elif ((integerSum == 0 && fractionalSum < 0)); then
+        ((fractionalSum = 10**unsignedFracSumLength + 10#$fractionalSum))
+    elif ((integerSum == 0 && 10#$fractionalSum < 0)); then
         integerSum="-"$integerSum
         ((fractionalSum *= -1))
     fi
 
     # Touch up the numbers for display
     local sum
-    ((fractionalSum < 0)) && fractionalSum=${fractionalSum:1}
+    ((10#$fractionalSum < 0)) && fractionalSum=${fractionalSum:1}
     if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
         _shellmath_numToScientific "$integerSum" "$fractionalSum"
         _shellmath_getReturnValue sum
-    elif ((fractionalSum)); then
+    elif ((10#$fractionalSum)); then
         printf -v sum "%s.%s" "$integerSum" "$fractionalSum"
     else
         sum=$integerSum
