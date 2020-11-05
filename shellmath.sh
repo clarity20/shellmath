@@ -741,12 +741,6 @@ function _shellmath_divide()
         return "$__shellmath_SUCCESS"
     fi
 
-    # Throw error on divide by zero
-    if ((n2 == 0)); then
-        _shellmath_warn  "${__shellmath_returnCodes[DIVIDE_BY_ZERO]}"  "$n2"
-        return $?
-    fi
-
     # Check and parse the arguments
     local flags
     _shellmath_validateAndParse "$n1";  flags=$?
@@ -759,6 +753,12 @@ function _shellmath_divide()
     _shellmath_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
     if ((flags == __shellmath_ILLEGAL_NUMBER)); then
         _shellmath_warn  "${__shellmath_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
+        return $?
+    fi
+
+    # Throw error on divide by zero
+    if ((integerPart2 == 0 && 10#$fractionalPart2 == 0)); then
+        _shellmath_warn  "${__shellmath_returnCodes[DIVIDE_BY_ZERO]}"  "$n2"
         return $?
     fi
 
