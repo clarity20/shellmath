@@ -369,9 +369,13 @@ function _shellmath_add()
             return "$recursiveReturn"
         fi
         # 3) head node
+        local sum
         _shellmath_add "$n1" "$n2"; recursiveReturn=$?
-        _shellmath_getReturnValue n2
-        _shellmath_setReturnValue "$n2"
+        _shellmath_getReturnValue sum
+        _shellmath_setReturnValue "$sum"
+        if (( isVerbose && ! isSubcall )); then
+            echo "$sum"
+        fi
         return "$recursiveReturn"
     fi
 
@@ -605,9 +609,13 @@ function _shellmath_multiply()
             return "$recursiveReturn"
         fi
         # 3) head node
+        local product
         _shellmath_multiply "$n1" "$n2"; recursiveReturn=$?
-        _shellmath_getReturnValue n2
-        _shellmath_setReturnValue "$n2"
+        _shellmath_getReturnValue product
+        _shellmath_setReturnValue "$product"
+        if (( isVerbose && ! isSubcall )); then
+            echo "$product"
+        fi
         return "$recursiveReturn"
     fi
 
