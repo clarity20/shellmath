@@ -478,20 +478,26 @@ function _shellmath_add()
     # Carry a digit from fraction to integer if required
     if ((10#$fractionalSum!=0 && unsignedFracSumLength > unsignedFracLength)); then
         local carryAmount
-        ((carryAmount=isNegative1?-1:1))
+        ((carryAmount = isNegative1?-1:1))
         ((integerSum += carryAmount))
         # Remove the leading 1-digit whether the fraction is + or -
         fractionalSum=${fractionalSum/1/}
     fi
 
-    # Resolve sign discrepancies between the partial sums
+    # Transform the partial sums from additive to concatenative. Example: the
+    # pair (-2,3) is not -2.3 but rather (-2)+(0.3), i.e. -1.7 so we want to
+    # transform (-2,3) to (-1,7). This transformation is meaningful when
+    # the two parts have opposite signs, so that's what we look for.
     if ((integerSum < 0 && 10#$fractionalSum > 0)); then
         ((integerSum += 1))
-        ((fractionalSum = 10**unsignedFracSumLength - 10#$fractionalSum))
+        ((fractionalSum = 10#$fractionalSum - 10**unsignedFracSumLength))
     elif ((integerSum > 0 && 10#$fractionalSum < 0)); then
         ((integerSum -= 1))
         ((fractionalSum = 10**unsignedFracSumLength + 10#$fractionalSum))
-    elif ((integerSum == 0 && 10#$fractionalSum < 0)); then
+    fi
+    # This last case needs to function either as an "else" for the above,
+    # or as a coda to the "if" clause when integerSum is -1 initially.
+    if ((integerSum == 0 && 10#$fractionalSum < 0)); then
         integerSum="-"$integerSum
         ((fractionalSum *= -1))
     fi
