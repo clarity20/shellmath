@@ -787,8 +787,8 @@ function _shellmath_multiply()
     local rescalingFactor
     _shellmath_reduceOuterPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
     _shellmath_getReturnValues integerPart1 integerPart2 fractionalPart1 fractionalPart2 rescalingFactor
-    if ((fractionalPart1)); then type1=${__shellmath_numericTypes[DECIMAL]}; fi
-    if ((fractionalPart2)); then type2=${__shellmath_numericTypes[DECIMAL]}; fi
+    if ((10#$fractionalPart1)); then type1=${__shellmath_numericTypes[DECIMAL]}; fi
+    if ((10#$fractionalPart2)); then type2=${__shellmath_numericTypes[DECIMAL]}; fi
 
     _shellmath_reduceCrossPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
     _shellmath_getReturnValues fractionalPart1 fractionalPart2
