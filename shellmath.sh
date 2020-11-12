@@ -118,10 +118,13 @@ function _shellmath_precalc()
     # We check the 64-bit, 32-bit and 16-bit thresholds only.
     if ((2**63 < 2**63-1)); then
         __shellmath_precision=18
+        __shellmath_maxValue=$((2**63-1))
     elif ((2**31 < 2**31-1)); then
         __shellmath_precision=9
+        __shellmath_maxValue=$((2**31-1))
     else     ## ((2**15 < 2**15-1))
         __shellmath_precision=4
+        __shellmath_maxValue=$((2**15-1))
     fi
 
     __shellmath_didPrecalc=$__shellmath_true
@@ -195,6 +198,12 @@ function _shellmath_validateAndParse()
     elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
         local integerPart=${BASH_REMATCH[1]:-0}
         local fractionalPart=${BASH_REMATCH[2]}
+
+        # Strip superfluous trailing zeros
+        if [[ "$fractionalPart" =~ ^(.*[^0])0*$ ]]; then
+            fractionalPart=${BASH_REMATCH[1]}
+        fi
+
         numericType=${__shellmath_numericTypes[DECIMAL]}
 
         # Factor out the negative sign if it is present
@@ -222,6 +231,12 @@ function _shellmath_validateAndParse()
             local sigInteger=${BASH_REMATCH[1]}
             local sigIntLength=${#sigInteger}
             local sigFraction=${BASH_REMATCH[3]}
+
+            # Strip superfluous trailing zeros
+            if [[ "$sigFraction" =~ ^(.*[^0])0*$ ]]; then
+                sigFraction=${BASH_REMATCH[1]}
+            fi
+
             local sigFracLength=${#sigFraction}
 
             if [[ "$n" =~ ^- ]]; then
@@ -291,6 +306,11 @@ function _shellmath_validateAndParse()
 }
 
 
+################################################################################
+# numToScientific (integerPart, fractionalPart)
+#
+# Format conversion utility function
+################################################################################
 function _shellmath_numToScientific()
 {
     local integerPart=$1 fractionalPart=$2
@@ -567,6 +587,126 @@ function _shellmath_subtract()
 
 
 ################################################################################
+# reduceOuterPairs (two integer parts [, two fractional parts])
+#
+# Examines the magnitudes of two numbers in advance of a multiplication
+# and either chops off their lowest-order digits or pushes them to the
+# corresponding lower-order parts in order to prevent overflow in the product.
+# The choice depends on whether 2 or 4 arguments are supplied.
+################################################################################
+function _shellmath_reduceOuterPairs()
+{
+    local value1="$1" value2="$2" subvalue1="$3" subvalue2="$4"
+
+    local digitExcess value1Len=${#value1} value2Len=${#value2}
+    ((digitExcess = value1Len + value2Len - __shellmath_precision))
+
+    # Be very precise about detecting overflow. The "digit excess" underestimates
+    # this: floor(log_10(longLongMax)). We don't want to needlessly lose precision
+    # when a product barely squeezes under the exact threshold.
+    if ((digitExcess>1 || (digitExcess==1 && value1 > __shellmath_maxValue/value2) )); then
+
+        # Identify the digit-tails to be pruned off and either discarded or
+        # pushed past the decimal point. In pruning the two values we want to
+        # retain as much "significance" as possible, so we try to equalize the
+        # lengths of the remaining digit sequences.
+        local tail1 tail2
+        local lengthDiff leftOver
+
+        # Which digit string is longer, and by how much?
+        ((lengthDiff = value1Len - value2Len))
+        if ((lengthDiff > 0)); then
+            if ((digitExcess <= lengthDiff)); then
+                # Chop digits from the longer string only
+                tail1=${value1:(-digitExcess)}
+                tail2=""     # do not chop anything
+            else
+                # Chop more digits from the longer string so the two strings
+                # end up as nearly-equal in length as possible
+                ((leftOver = digitExcess - lengthDiff))
+                tail1=${value1:(-(lengthDiff + leftOver/2))}
+                tail2=${value2:(-((leftOver+1)/2))}
+            fi
+        else
+            ((lengthDiff *= -1))
+            # Mirror the above code block but swap 1 and 2
+            if ((digitExcess <= lengthDiff)); then
+                tail1=""
+                tail2=${value2:(-digitExcess)}
+            else
+                ((leftOver = digitExcess - lengthDiff))
+                tail1=${value1:(-((leftOver+1)/2))}
+                tail2=${value2:(-(lengthDiff + leftOver/2))}
+            fi
+        fi
+
+        # Discard the least-significant digits or move them past the decimal point
+        value1=${value1%${tail1}}
+        [[ -n "$subvalue1" ]] && subvalue1=${tail1}${subvalue1%0}  # remove placeholder zero
+        value2=${value2%${tail2}}
+        [[ -n "$subvalue2" ]] && subvalue2=${tail2}${subvalue2%0}
+    else
+        # Signal the caller that no rescaling was actually done
+        ((digitExcess = 0))
+    fi
+
+    _shellmath_setReturnValues "$value1" "$value2" \
+                         "$subvalue1" "$subvalue2" "$digitExcess"
+}
+
+################################################################################
+# rescaleValue(value, rescaleFactor)
+#
+# Upscales a decimal value by "factor" orders of magnitude:  3.14159 --> 3141.59
+################################################################################
+function _shellmath_rescaleValue()
+{
+    local value="$1" rescalingFactor="$2"
+    local head tail zeroCount zeroTail
+
+    [[ "$value" =~ ^(.*)\.(.*)$ ]]
+    head=${BASH_REMATCH[1]}
+    tail=${BASH_REMATCH[2]}
+    ((zeroCount = rescalingFactor - ${#tail}))
+    if ((zeroCount > 0)); then
+        printf -v zeroTail "%0*d" $zeroCount 0
+        value=${head}${tail}${zeroTail}
+    elif ((zeroCount < 0)); then
+        value=${head}${tail:0:rescalingFactor}"."${tail:rescalingFactor}
+    else
+        value=${head}${tail}
+    fi
+
+    _shellmath_setReturnValue "$value"
+}
+
+################################################################################
+# reduceCrossPairs (two integer parts, two fractional parts)
+#
+# Examines the precision of the inner products (of "multiplication by parts")
+# and if necessary truncates the fractional part(s) to prevent overflow
+################################################################################
+function _shellmath_reduceCrossPairs()
+{
+    local value1="$1" value2="$2" subvalue1="$3" subvalue2="$4"
+
+    local digitExcess value1Len=${#value1} value2Len=${#value2}
+    local subvalue1Len=${#subvalue1} subvalue2Len=${#subvalue2}
+
+    # Check BOTH cross-products
+    ((digitExcess = value1Len + subvalue2Len - __shellmath_precision))
+    if ((digitExcess > 1 || (digitExcess==1 && value1 > __shellmath_maxValue/subvalue2) )); then
+        subvalue2=${subvalue2:0:(-digitExcess)}
+    fi
+    ((digitExcess = value2Len + subvalue1Len - __shellmath_precision))
+    if ((digitExcess > 1 || (digitExcess==1 && value2 > __shellmath_maxValue/subvalue1) )); then
+        subvalue1=${subvalue1:0:(-digitExcess)}
+    fi
+
+    _shellmath_setReturnValues "$subvalue1" "$subvalue2"
+}
+
+################################################################################
 # multiply (multiplicand, multiplier)
 ################################################################################
 function _shellmath_multiply()
@@ -643,11 +783,28 @@ function _shellmath_multiply()
         return $?
     fi
 
+    # Overflow / underflow detection and accommodation
+    local rescalingFactor
+    _shellmath_reduceOuterPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
+    _shellmath_getReturnValues integerPart1 integerPart2 fractionalPart1 fractionalPart2 rescalingFactor
+    if ((fractionalPart1)); then type1=${__shellmath_numericTypes[DECIMAL]}; fi
+    if ((fractionalPart2)); then type2=${__shellmath_numericTypes[DECIMAL]}; fi
+
+    _shellmath_reduceCrossPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
+    _shellmath_getReturnValues fractionalPart1 fractionalPart2
+
+    _shellmath_reduceOuterPairs "$fractionalPart1" "$fractionalPart2"
+    _shellmath_getReturnValues fractionalPart1 fractionalPart2
+
     # Quick multiply & return for integer multiplies
     if ((type1==type2 && type1==__shellmath_numericTypes[INTEGER])); then
         ((isNegative1)) && ((integerPart1*=-1))
         ((isNegative2)) && ((integerPart2*=-1))
         local product=$((integerPart1 * integerPart2))
+        if ((rescalingFactor > 0)); then
+            _shellmath_rescaleValue "$product" "$rescalingFactor"
+            _shellmath_getReturnValue product
+        fi
         if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
             _shellmath_numToScientific $product "" 
             _shellmath_getReturnValue product
@@ -706,6 +863,14 @@ function _shellmath_multiply()
     # Determine the sign of the product
     if ((isNegative1 != isNegative2)); then
         product="-"$product
+    fi
+
+    # When we pre-detect overflow in the integer part of the computation,
+    # we compensate by shrinking the inputs by some order of magnitude.
+    # Having now finished the computation, we revert to the original magnitude.
+    if ((rescalingFactor > 0)); then
+        _shellmath_rescaleValue "$product" "$rescalingFactor"
+        _shellmath_getReturnValue product
     fi
 
     # Convert to scientific notation if appropriate
