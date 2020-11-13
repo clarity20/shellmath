@@ -3,6 +3,10 @@
 # Internal test engine functions
 ###############################################################################
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NO_COLOR='\033[0m'
+
 function _shellmath_assert_returnCode()
 {
     _shellmath_assert_functionReturn -c "$@"
@@ -61,18 +65,18 @@ function _shellmath_assert_functionReturn()
 
     if [[ $mode == RETURN_STRING ]]; then
         if [[ "${actualReturn[*]}" == "$expectedReturn" ]]; then
-            _shellmath_setReturnValue  "ok   "
+            _shellmath_setReturnValue  "${GREEN}ok${NO_COLOR}   "
             return "$__shellmath_SUCCESS"
         else
-            _shellmath_setReturnValue "FAIL (${actualReturn[*]}) "
+            _shellmath_setReturnValue "${RED}FAIL${NO_COLOR} (${actualReturn[*]}) "
             return "$__shellmath_FAIL"
         fi
     elif [[ $mode == RETURN_CODE ]]; then
         if [[ "$returnCode" == "$expectedReturn" ]]; then
-            _shellmath_setReturnValue  "ok   "
+            _shellmath_setReturnValue  "${GREEN}ok${NO_COLOR}   "
             return "$__shellmath_SUCCESS"
         else
-            _shellmath_setReturnValue "FAIL ($returnCode) "
+            _shellmath_setReturnValue "${RED}FAIL${NO_COLOR} ($returnCode) "
             return "$__shellmath_FAIL"
         fi
     fi

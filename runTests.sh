@@ -80,8 +80,7 @@ function _shellmath_runTests()
                 ;;
 
             *)
-                echo Line "$lineNumber": Command "$command"
-                echo FAIL: Code or String indicator required
+                echo -e ${RED}FAIL${NO_COLOR} Line "$lineNumber": Command "$command": Code or String indicator required
                 return 2
                 ;;
         esac
@@ -89,7 +88,7 @@ function _shellmath_runTests()
         # Expand the next word to a shellmath function name
         words[nextWord]=_shellmath_${words[nextWord]}
         if ! type -t "${words[nextWord]}" >/dev/null; then
-            echo "FAIL line $lineNumber: Syntax error. Required: String|Code  value  operation  args..."
+            echo "${RED}FAIL${NO_COLOR} Line $lineNumber: Command "$command": Syntax error. Required: String|Code  value  operation  args..."
             return 3
         fi
 
@@ -98,7 +97,7 @@ function _shellmath_runTests()
         eval "$fullCommand"
         local returnString
         _shellmath_getReturnValue returnString
-        echo "$returnString" Line "$lineNumber": "$command"
+        echo -e "$returnString" Line "$lineNumber": "$command"
 
     fi
 
