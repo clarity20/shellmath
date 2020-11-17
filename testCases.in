@@ -121,7 +121,7 @@ String -0.5   divide -1 2
 String 34.54   divide 3454 100
 
 # Non-terminating decimals
-String 0.1666666666666666    divide 1 6
+String 0.166666666666666667   divide  1 6
 
 # Decimal arguments
 String 0.25     divide 0.5 2

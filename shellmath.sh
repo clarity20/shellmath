@@ -706,6 +706,20 @@ function _shellmath_reduceCrossPairs()
     _shellmath_setReturnValues "$subvalue1" "$subvalue2"
 }
 
+
+function _shellmath_round()
+{
+    local number="$1" digitCount="$2"
+    local nextDigit=${number:digitCount:1}
+
+    number=${number:0:digitCount}
+    if ((nextDigit >= 5)); then
+        printf -v number "%0*d" $digitCount $((10#$number + 1))
+    fi
+
+    _shellmath_setReturnValue "$number"
+}
+
 ################################################################################
 # multiply (multiplicand, multiplier)
 ################################################################################
@@ -946,20 +960,52 @@ function _shellmath_divide()
     # we scale up the numerator further, padding with as many zeros as it can hold
     local numerator denominator quotient
     local rescaleFactor zeroCount zeroTail
+
+    if ((integerPart1 == 0)); then
+        integerPart1=""
+    fi
     ((zeroCount = __shellmath_precision - ${#integerPart1} - ${#fractionalPart1}))
     ((rescaleFactor = __shellmath_precision - ${#integerPart1} - ${#fractionalPart2}))
-    printf -v zeroTail "%0*d" "$zeroCount" 0
+    if ((zeroCount > 0)); then
+        printf -v zeroTail "%0*d" "$zeroCount" 0
+    fi
 
     # Rescale and rewrite the fraction to be computed, and compute it
     numerator=${integerPart1}${fractionalPart1}${zeroTail}
     denominator=${integerPart2}${fractionalPart2}
     ((quotient = 10#$numerator / 10#$denominator))
 
-    # Rescale back
-    if ((rescaleFactor >= ${#quotient})); then
-        printf -v quotient "0.%0*d" "$rescaleFactor" "$quotient"
+    # For greater precision, re-divide by the remainder to get the next digits of the quotient
+    local remainder quotient_2
+    ((remainder = 10#$numerator % 10#$denominator))   # cannot exceed numerator or thus, maxValue
+    ((zeroCount = __shellmath_precision - ${#remainder}))
+    if ((zeroCount > 0)); then
+        printf -v zeroTail "%0*d" "$zeroCount" 0
     else
-        quotient=${quotient:0:(-$rescaleFactor)}"."${quotient:(-$rescaleFactor)}
+        zeroTail=""
+    fi
+    # Derive the new numerator from the remainder. Do not change the denominator.
+    numerator=${remainder}${zeroTail}
+    ((quotient_2 = 10#$numerator / 10#$denominator))
+    quotient=${quotient}${quotient_2}
+    ((rescaleFactor += ${#quotient_2}))
+
+    # Rescale back. For aesthetic reasons we also round off at the "precision"th decimal place
+    ((zeroCount = rescaleFactor - ${#quotient}))
+    if ((zeroCount >= 0)); then
+        local zeroPrefix="" fractionalPart
+        if ((zeroCount > 0)); then
+            printf -v zeroPrefix "%0*d" "$((rescaleFactor - ${#quotient}))" 0
+        fi
+        fractionalPart=${zeroPrefix}${quotient}
+        _shellmath_round $fractionalPart $__shellmath_precision
+        _shellmath_getReturnValue fractionalPart
+        quotient="0."${fractionalPart}
+    else
+        fractionalPart=${quotient:(-$rescaleFactor)}
+        _shellmath_round $fractionalPart $__shellmath_precision
+        _shellmath_getReturnValue fractionalPart
+        quotient=${quotient:0:(-$rescaleFactor)}"."${fractionalPart}
     fi
 
     # Determine the sign of the quotient
