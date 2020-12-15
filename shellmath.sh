@@ -356,8 +356,12 @@ function _shellmath_add()
 
     # Is the caller itself an arithmetic function?
     local isSubcall=${__shellmath_false}
+    local isMultiplication=${__shellmath_false}
     if [[ "${FUNCNAME[1]}" =~ shellmath_(add|subtract|multiply|divide)$ ]]; then
         isSubcall=${__shellmath_true}
+        if [[ "${BASH_REMATCH[1]}" == multiply ]]; then
+            isMultiplication=${__shellmath_true}
+        fi
     fi
 
     # Handle corner cases where argument count is not 2
@@ -370,7 +374,7 @@ function _shellmath_add()
         _shellmath_setReturnValue "$n1"
         (( isVerbose && ! isSubcall )) && echo "$n1"
         return "$__shellmath_SUCCESS"
-    elif ((argCount > 2)); then
+    elif ((argCount > 2 && !isSubcall)); then
         local recursiveReturn
 
         # Use a binary recursion tree to add everything up
@@ -403,18 +407,32 @@ function _shellmath_add()
     local isNegative1 type1 isScientific1 isNegative2 type2 isScientific2
     local flags
 
-    # Check and parse the arguments
-    _shellmath_validateAndParse "$n1";  flags=$?
-    _shellmath_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
-    if ((flags == __shellmath_ILLEGAL_NUMBER)); then
-        _shellmath_warn  "${__shellmath_returnCodes[ILLEGAL_NUMBER]}"  "$n1"
-        return $?
-    fi
-    _shellmath_validateAndParse "$n2";  flags=$?
-    _shellmath_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
-    if ((flags == __shellmath_ILLEGAL_NUMBER)); then
-        _shellmath_warn  "${__shellmath_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
-        return $?
+    if ((isMultiplication)); then
+        integerPart1="$1"
+        fractionalPart1="$2"
+        integerPart2="$3"
+        fractionalPart2="$4"
+
+        type1=${__shellmath_numericTypes[DECIMAL]}
+        type2=${__shellmath_numericTypes[DECIMAL]}
+        isNegative1=$__shellmath_false
+        isNegative2=$__shellmath_false
+        isScientific1=$__shellmath_false
+        isScientific2=$__shellmath_false
+    else
+        # Check and parse the arguments
+        _shellmath_validateAndParse "$n1";  flags=$?
+        _shellmath_getReturnValues  integerPart1  fractionalPart1  isNegative1  type1  isScientific1
+        if ((flags == __shellmath_ILLEGAL_NUMBER)); then
+            _shellmath_warn  "${__shellmath_returnCodes[ILLEGAL_NUMBER]}"  "$n1"
+            return $?
+        fi
+        _shellmath_validateAndParse "$n2";  flags=$?
+        _shellmath_getReturnValues  integerPart2  fractionalPart2  isNegative2  type2  isScientific2
+        if ((flags == __shellmath_ILLEGAL_NUMBER)); then
+            _shellmath_warn  "${__shellmath_returnCodes[ILLEGAL_NUMBER]}"  "$n2"
+            return $?
+        fi
     fi
 
     # Quick add & return for integer adds
@@ -854,24 +872,32 @@ function _shellmath_multiply()
     if ((fractionalWidth2 <= ${#innerProduct1})); then
         local innerInt1=${innerProduct1:0:(-$fractionalWidth2)}
         local innerFloat1=${innerProduct1:(-$fractionalWidth2)}
-        innerProduct1=${innerInt1}"."${innerFloat1}
+        integerPart1=${innerInt1}
+        fractionalPart1=${innerFloat1}
     else
-        printf -v innerProduct1 "0.%0*d" "$fractionalWidth2" "$innerProduct1"
+        integerPart1=0
+        printf -v fractionalPart1 "%0*d" "$fractionalWidth2" "$innerProduct1"
     fi
     if ((fractionalWidth1 <= ${#innerProduct2})); then
         local innerInt2=${innerProduct2:0:(-$fractionalWidth1)}
         local innerFloat2=${innerProduct2:(-$fractionalWidth1)}
-        innerProduct2=${innerInt2}"."${innerFloat2}
+        integerPart2=${innerInt2}
+        fractionalPart2=${innerFloat2}
     else
-        printf -v innerProduct2 "0.%0*d" "$fractionalWidth1" "$innerProduct2"
+        integerPart2=0
+        printf -v fractionalPart2 "%0*d" "$fractionalWidth1" "$innerProduct2"
     fi
 
     # Combine the distributed parts
-    local innerSum outerSum product
-    _shellmath_add  "$innerProduct1"  "$innerProduct2"
+    local innerSum product
+    # Add the inner products to get the inner sum
+    _shellmath_add  "$integerPart1" "$fractionalPart1" "$integerPart2" "$fractionalPart2"
     _shellmath_getReturnValue innerSum
-    outerSum=${intProduct}"."${floatProduct}
-    _shellmath_add  "$innerSum"  "$outerSum"
+    [[ "$innerSum" =~ (.*)\.(.*) ]]
+    integerPart1=${BASH_REMATCH[1]}
+    fractionalPart1=${BASH_REMATCH[2]}
+    # Add inner sum + outer sum
+    _shellmath_add "$integerPart1" "$fractionalPart1" "$intProduct" "$floatProduct"
     _shellmath_getReturnValue product
 
     # Determine the sign of the product
