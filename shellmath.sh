@@ -816,17 +816,19 @@ function _shellmath_multiply()
     fi
 
     # Overflow / underflow detection and accommodation
-    local rescalingFactor
-    _shellmath_reduceOuterPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
-    _shellmath_getReturnValues integerPart1 integerPart2 fractionalPart1 fractionalPart2 rescalingFactor
-    if ((10#$fractionalPart1)); then type1=${__shellmath_numericTypes[DECIMAL]}; fi
-    if ((10#$fractionalPart2)); then type2=${__shellmath_numericTypes[DECIMAL]}; fi
+    local rescalingFactor=0
+    if ((${#integerPart1} + ${#integerPart2} + ${#fractionalPart1} + ${#fractionalPart2} >= ${__shellmath_precision})); then
+        _shellmath_reduceOuterPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
+        _shellmath_getReturnValues integerPart1 integerPart2 fractionalPart1 fractionalPart2 rescalingFactor
+        if ((10#$fractionalPart1)); then type1=${__shellmath_numericTypes[DECIMAL]}; fi
+        if ((10#$fractionalPart2)); then type2=${__shellmath_numericTypes[DECIMAL]}; fi
 
-    _shellmath_reduceCrossPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
-    _shellmath_getReturnValues fractionalPart1 fractionalPart2
+        _shellmath_reduceCrossPairs "$integerPart1" "$integerPart2" "$fractionalPart1" "$fractionalPart2"
+        _shellmath_getReturnValues fractionalPart1 fractionalPart2
 
-    _shellmath_reduceOuterPairs "$fractionalPart1" "$fractionalPart2"
-    _shellmath_getReturnValues fractionalPart1 fractionalPart2
+        _shellmath_reduceOuterPairs "$fractionalPart1" "$fractionalPart2"
+        _shellmath_getReturnValues fractionalPart1 fractionalPart2
+    fi
 
     # Quick multiply & return for integer multiplies
     if ((type1==type2 && type1==__shellmath_numericTypes[INTEGER])); then
