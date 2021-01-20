@@ -181,21 +181,8 @@ function _shellmath_validateAndParse()
 
     ((returnCode = __shellmath_SUCCESS))
     
-    # Accept integers
-    if [[ "$n" =~ ^[-]?[0-9]+$ ]]; then
-        numericType=${__shellmath_numericTypes[INTEGER]}
-
-        # Factor out the negative sign if it is present
-        if [[ "$n" =~ ^- ]]; then
-            isNegative=${__shellmath_true}
-            n=${n:1}
-        fi
-
-        _shellmath_setReturnValues "$n" 0 $isNegative "$numericType" $isScientific
-        return "$returnCode"
-
     # Accept decimals: leading digits (optional), decimal point, trailing digits
-    elif [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
+    if [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
         local integerPart=${BASH_REMATCH[1]:-0}
         local fractionalPart=${BASH_REMATCH[2]}
 
@@ -214,6 +201,19 @@ function _shellmath_validateAndParse()
 
         _shellmath_setReturnValues "$integerPart" "$fractionalPart" \
                     $isNegative "$numericType" $isScientific
+        return "$returnCode"
+
+    # Accept integers
+    elif [[ "$n" =~ ^[-]?[0-9]+$ ]]; then
+        numericType=${__shellmath_numericTypes[INTEGER]}
+
+        # Factor out the negative sign if it is present
+        if [[ "$n" =~ ^- ]]; then
+            isNegative=${__shellmath_true}
+            n=${n:1}
+        fi
+
+        _shellmath_setReturnValues "$n" 0 $isNegative "$numericType" $isScientific
         return "$returnCode"
 
     # Accept scientific notation: 1e5, 2.44E+10, etc.
