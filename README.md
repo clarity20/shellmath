@@ -13,9 +13,9 @@ Then fire away at the shellmath API.
 The ___basic___ API looks like this:
 ```
     _shellmath_add        arg1   arg2  [...]  argN
-    _shellmath_subtract   arg1   arg2
+    _shellmath_subtract   arg1   arg2               # means arg1 - arg2
     _shellmath_multiply   arg1   arg2  [...]  argN
-    _shellmath_divide     arg1   arg2
+    _shellmath_divide     arg1   arg2               # means arg1 / arg2
 ```
 
 The ___extended___ API introduces one more function:
@@ -39,6 +39,19 @@ Addition and multiplication are of arbitrary arity; try this on for size:
     _shellmath_getReturnValue   sixFactorial
 ```
 Subtraction and division, OTOH, are exclusively binary operations. 
+
+## Faster than bc (!)
+This project contains a file `timingData.txt` that captures the results of timing experiments 
+to compare `shellmath` against GNU `bc`, the basic commandline calculator. The experiments
+exercised each of the arithmetic operations and captured the results in a shell variable, as
+this is the most likely use case. Here are the run times of the shellmath routines as a 
+percentage of their bc equivalents:
+```
+   Addition:        42.2%
+   Subtraction:     51.6%
+   Multiplication:  76.1%
+   Division:        43.4%
+```
 
 ## The demos
 For a gentler introduction to `shellmath` run the demo `slower_e_demo.sh` 
