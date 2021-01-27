@@ -7,8 +7,8 @@ they said it couldn't be done... and because:
 ![image info](./image.png)
 
 ## Quick-start guide
-Download this project and source the file `shellmath.sh` into your shell script.
-Then fire away at the shellmath API.
+Download this project and source the file `shellmath.sh` into your shell script,
+then fire away at the shellmath API!
 
 The ___basic___ API looks like this:
 ```
@@ -32,11 +32,13 @@ numbers presented in either standard or scientific notation:
 ```
     _shellmath_add   1.009   4.223e-2
     _shellmath_getReturnValue   sum
+    echo "The sum is $sum"
 ```
 Addition and multiplication are of arbitrary arity; try this on for size:
 ```
     _shellmath_multiply  1  2  3  4  5  6
     _shellmath_getReturnValue   sixFactorial
+    echo "6 factorial is $sixFactorial"
 ```
 Subtraction and division, OTOH, are exclusively binary operations. 
 
@@ -53,8 +55,12 @@ percentage of their bc equivalents:
    Division:        43.4%
 ```
 
+Astute observers will note the experiments provide approximations to the sum, difference, 
+product, and quotient of *pi* and *e*. Unfortunately I did not gain any insight as to which 
+of these are algebraic and which are transcendental.
+
 ## The demos
-For a gentler introduction to `shellmath` run the demo `slower_e_demo.sh` 
+For a gentle introduction to `shellmath` run the demo `slower_e_demo.sh` 
 with a small whole-number argument, say 15:
 ```
 $ slower_e_demo.sh 15
