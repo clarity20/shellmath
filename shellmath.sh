@@ -688,7 +688,7 @@ function _shellmath_rescaleValue()
     tail=${BASH_REMATCH[2]}
     ((zeroCount = rescalingFactor - ${#tail}))
     if ((zeroCount > 0)); then
-        printf -v zeroTail "%0*d" $zeroCount 0
+        printf -v zeroTail "%0*d" "$zeroCount" 0
         value=${head}${tail}${zeroTail}
     elif ((zeroCount < 0)); then
         value=${head}${tail:0:rescalingFactor}"."${tail:rescalingFactor}
@@ -733,7 +733,7 @@ function _shellmath_round()
 
     number=${number:0:digitCount}
     if ((nextDigit >= 5)); then
-        printf -v number "%0*d" $digitCount $((10#$number + 1))
+        printf -v number "%0*d" "$digitCount" $((10#$number + 1))
     fi
 
     _shellmath_setReturnValue "$number"
@@ -1027,12 +1027,12 @@ function _shellmath_divide()
             printf -v zeroPrefix "%0*d" "$((rescaleFactor - ${#quotient}))" 0
         fi
         fractionalPart=${zeroPrefix}${quotient}
-        _shellmath_round $fractionalPart $__shellmath_precision
+        _shellmath_round "$fractionalPart" $__shellmath_precision
         _shellmath_getReturnValue fractionalPart
         quotient="0."${fractionalPart}
     else
         fractionalPart=${quotient:(-$rescaleFactor)}
-        _shellmath_round $fractionalPart $__shellmath_precision
+        _shellmath_round "$fractionalPart" $__shellmath_precision
         _shellmath_getReturnValue fractionalPart
         quotient=${quotient:0:(-$rescaleFactor)}"."${fractionalPart}
     fi
