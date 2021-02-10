@@ -13,7 +13,8 @@
 #    mySum=$( _shellmath_add 202.895 6.00311 )
 #    echo $mySum
 #
-#    # Faster method: use hidden globals to simulate more flexible pass-and-return
+#    # Optimized method: use hidden globals to simulate more flexible pass-and-return
+#    _shellmath_isOptimized=1
 #    _shellmath_add 44.2 -87
 #    _shellmath_getReturnValue mySum
 #    echo $mySum
