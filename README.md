@@ -42,22 +42,30 @@ Addition and multiplication are of arbitrary arity; try this on for size:
 ```
 Subtraction and division, OTOH, are exclusively binary operations. 
 
-## Faster than bc (!)
-This project contains a file `timingData.txt` that captures the results of timing experiments 
-to compare `shellmath` against GNU `bc`, the basic commandline calculator. The experiments
-exercised each of the arithmetic operations and captured the results in a shell variable, as
-this is the most likely use case. Here are the run times of the shellmath routines as a 
-percentage of their bc equivalents:
+## Competitive with awk and bc
+The file `timingData.txt` captures the results of some timing experiments that compare 
+`shellmath` against the GNU versions of the calculators `awk` and `bc`. The experiments
+exercised each of the arithmetic operations and captured the results in a shell variable.
+The result summary below shows that `shellmath` is competitive with `awk` and runs faster
+than `bc` in these experiments. (One commenter noted that the differences in execution speed
+can be partially explained by the fact that `shellmath` and `awk` use finite precision 
+whereas `bc` uses arbitrary precision. Another factor in these measurements is the need to 
+subshell 'awk' and 'bc' to capture their results, whereas 'shellmath' writes directly to
+the shell's global memory.)
+
+Here are the run times of `shellmath` as a percentage of the `awk` and `bc` equivalents:
 ```
-   Addition:        42.2%
-   Subtraction:     51.6%
-   Multiplication:  76.1%
-   Division:        43.4%
+                    versus awk    versus bc
+   Addition:          82.2%         40.6%
+   Subtraction:       95.9%         50.5%
+   Multiplication:   135.9%         73.3%
+   Division:          80.3%         43.2%
 ```
 
 Astute observers will note the experiments provide approximations to the sum, difference, 
-product, and quotient of *pi* and *e*. Unfortunately I did not gain any insight as to which 
-of these are algebraic and which are transcendental.
+product, and quotient of *pi* and *e*. Unfortunately I did not gain insight as to which 
+of these values, if any, are
+[transcendental](https://en.wikipedia.org/wiki/Transcendental_number#Possible_transcendental_numbers).
 
 ## The demos
 For a gentle introduction to `shellmath` run the demo `slower_e_demo.sh` 
