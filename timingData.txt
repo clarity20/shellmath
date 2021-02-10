@@ -3,9 +3,13 @@ $ __shellmath_isOptimized=1
 
 $ ######## Addition ########
 $ time { for ((i=0; i<100; i++)); do _shellmath_add  3.1415926  2.7182818; _shellmath_getReturnValue sum; done; }
-real    0m0.196s
-user    0m0.195s
+real    0m0.198s
+user    0m0.196s
 sys     0m0.000s
+$ time { for ((i=0; i<100; i++)); do sum=$(awk 'BEGIN {print 3.1415926+2.7182818}'); done; }
+real    0m0.241s
+user    0m0.055s
+sys     0m0.191s
 $ time { for ((i=0; i<100; i++)); do sum=$(bc <<< "3.1415926+2.7182818"); done; }
 real    0m0.488s
 user    0m0.092s
@@ -13,9 +17,13 @@ sys     0m0.384s
 
 $ ######## Subtraction ########
 $ time { for ((i=0; i<100; i++)); do _shellmath_subtract  3.1415926  2.7182818; _shellmath_getReturnValue diff; done; }
-real    0m0.236s
-user    0m0.234s
+real    0m0.233s
+user    0m0.231s
 sys     0m0.001s
+$ time { for ((i=0; i<100; i++)); do diff=$(awk 'BEGIN {print 3.1415926-2.7182818}'); done; }
+real    0m0.243s
+user    0m0.057s
+sys     0m0.191s
 $ time { for ((i=0; i<100; i++)); do diff=$(bc <<< "3.1415926-2.7182818"); done; }
 real    0m0.461s
 user    0m0.090s
@@ -23,9 +31,13 @@ sys     0m0.388s
 
 $ ######## Multiplication ########
 $ time { for ((i=0; i<100; i++)); do _shellmath_multiply  3.1415926 2.7182818; _shellmath_getReturnValue prod; done; }
-real    0m0.340s
-user    0m0.333s
-sys     0m0.005s
+real    0m0.341s
+user    0m0.339s
+sys     0m0.002s
+$ time { for ((i=0; i<100; i++)); do prod=$(awk 'BEGIN {print 3.1415926*2.7182818}'); done; }
+real    0m0.251s
+user    0m0.061s
+sys     0m0.194s
 $ time { for ((i=0; i<100; i++)); do prod=$(bc <<< "3.1415926*2.7182818"); done; }
 real    0m0.465s
 user    0m0.105s
@@ -33,9 +45,13 @@ sys     0m0.377s
 
 $ ######## Division ########
 $ time { for ((i=0; i<100; i++)); do _shellmath_divide  3.1415926/2.7182818; _shellmath_getReturnValue quot; done; }
-real    0m0.196s
-user    0m0.195s
+real    0m0.200s
+user    0m0.198s
 sys     0m0.000s
+$ time { for ((i=0; i<100; i++)); do quot=$(awk 'BEGIN {print 3.1415926/2.7182818}'); done; }
+real    0m0.249s
+user    0m0.063s
+sys     0m0.192s
 $ time { for ((i=0; i<100; i++)); do quot=$(bc <<< "scale=8; 3.1415926/2.7182818"); done; }
 real    0m0.463s
 user    0m0.116s
