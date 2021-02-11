@@ -42,7 +42,55 @@ Addition and multiplication are of arbitrary arity; try this on for size:
 ```
 Subtraction and division, OTOH, are exclusively binary operations. 
 
-## Competitive with awk and bc
+## The demos
+For a gentle introduction to `shellmath` run the demo `slower_e_demo.sh` 
+with a small whole-number argument, say 15:
+```
+$ slower_e_demo.sh 15
+e = 2.7182818284589936
+```
+
+This script uses a few `shellmath` API calls to calculate *e*, the mathematical
+constant also known as [Euler's number](https://oeis.org/A001113). The argument 
+*15* tells the script to evaluate the *15th-degree* Maclaurin polynomial for *e*.
+(That's the Taylor polynomial centered at 0.) Take a look inside the script to
+see how it uses the `shellmath` APIs.
+
+There is another demo script very much like this one but *different*, and the
+sensitive user can *feel* the difference. Try the following, but don't blink 
+or you'll miss it ;)
+```
+$ faster_e_demo.sh 15
+e = 2.7182818284589936
+```
+
+Did you feel the difference? Try the `-t` option with both scripts; this will produce
+timing statistics. Here are my results
+when running from my minGW64 command prompt on Windows 10 with an Intel i3 Core CPU:
+```
+$ for n in {1..5}; do faster_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
+0m0.055s
+0m0.051s
+0m0.056s
+0m0.054s
+0m0.054s
+
+$ for n in {1..5}; do slower_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
+0m0.498s
+0m0.594s
+0m0.536s
+0m0.511s
+0m0.580s
+```
+
+(When sizing up these timings, do keep in mind that ___we are timing the
+calculation of e from its Maclaurin polynomial. Every invocation of either
+script is exercising the shellmath arithmetic subroutines 31 times.___)
+
+The comment header in `faster_e_demo.sh` explains the optimization and shows
+how to put this faster version to work for you.
+
+## Runtime efficiency competitive with awk and bc
 The file `timingData.txt` captures the results of some timing experiments that compare 
 `shellmath` against the GNU versions of the calculators `awk` and `bc`. The experiments
 exercised each of the arithmetic operations and captured the results in a shell variable.
@@ -67,59 +115,12 @@ product, and quotient of *pi* and *e*. Unfortunately I did not gain insight as t
 of these values, if any, are
 [transcendental](https://en.wikipedia.org/wiki/Transcendental_number#Possible_transcendental_numbers).
 
-## The demos
-For a gentle introduction to `shellmath` run the demo `slower_e_demo.sh` 
-with a small whole-number argument, say 15:
-```
-$ slower_e_demo.sh 15
-e = 2.7182818284589936
-```
-
-This script uses a few `shellmath` API calls to calculate *e*, the mathematical
-constant also known as [Euler's number](https://oeis.org/A001113). The argument 
-*15* tells the script to evaluate the *15th-degree* Maclaurin polynomial for *e*.
-(That's the Taylor polynomial centered at 0.) Take a look inside the script to
-see how it uses the `shellmath` APIs.
-
-There is another demo script very much like this one but *different*, and the
-sensitive user can *feel* the difference. Try the following, but don't blink 
-or you'll miss it ;)
-```
-$ faster_e_demo.sh 15
-e = 2.7182818284589936
-```
-
-Did you feel the difference? Try the `-t` option with both scripts. Here are my results
-when running from my minGW64 command prompt on Windows 10 with an Intel i3 Core CPU:
-```
-$ for n in {1..5}; do faster_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
-0m0.055s
-0m0.051s
-0m0.056s
-0m0.054s
-0m0.054s
-
-$ for n in {1..5}; do slower_e_demo.sh -t 15 2>&1; done | awk '/^real/ {print $2}'
-0m0.498s
-0m0.594s
-0m0.536s
-0m0.511s
-0m0.580s
-```
-
-(When sizing up these timings, do keep in mind that ___we are timing the
-computation of e from its Maclaurin polynomial. Every invocation of either
-script is exercising the shellmath arithmetic subroutines 31 times.___)
-
-The comment header in `faster_e_demo.sh` explains the optimization and shows
-how to put this faster version to work for you.
-
-You can find further discussion of shellmath's runtime efficiency
+You can find a deeper discussion of shellmath's runtime efficiency
 [here](https://github.com/clarity20/shellmath/wiki/Shellmath-and-runtime-efficiency).
 
 ## Background
 The Bash shell does not have built-in operators for decimal arithmetic, making it
-something of an oddity among well-known, contemporary programming languages. For the most part,
+something of an oddity among well-known, widely-used programming languages. For the most part,
 practitioners in need of powerful computational building blocks have naturally opted
 for *other* languages and tools. Their widespread availability has diverted attention
 from the possibility of *implementing* decimal arithmetic in Bash and it's easy to assume
