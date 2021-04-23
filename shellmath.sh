@@ -25,20 +25,20 @@
 ################################################################################
 # Program constants
 ################################################################################
-declare -A -r __shellmath_numericTypes=(
+declare -A __shellmath_numericTypes=(
     [INTEGER]=0
     [DECIMAL]=1
 )
 
-declare -A -r __shellmath_returnCodes=(
+declare -A __shellmath_returnCodes=(
     [SUCCESS]="0:Success"
     [FAIL]="1:General failure"
     [ILLEGAL_NUMBER]="2:Invalid argument; decimal number required: '%s'"
     [DIVIDE_BY_ZERO]="3:Divide by zero error"
 )
 
-declare -r -i __shellmath_true=1
-declare -r -i __shellmath_false=0
+declare -i __shellmath_true=1
+declare -i __shellmath_false=0
 
 declare __shellmath_SUCCESS  __shellmath_FAIL  __shellmath_ILLEGAL_NUMBER
 
@@ -497,9 +497,15 @@ function _shellmath_add()
         ((fractionalSum += 10#$fractionalPart2))
     fi
 
-    unsignedFracSumLength=${#fractionalSum}
+    # Use a special variable to track the sign of the fractional sum. This is
+    # a workaround for the fact the "10#" operator for base-10 arithmetic
+    # is broken in certain versions of the shell.
+    local isFracSumNegative=$__shellmath_false
+
+    local unsignedFracSumLength=${#fractionalSum}
     if [[ "$fractionalSum" =~ ^[-] ]]; then
         ((unsignedFracSumLength--))
+        isFracSumNegative=$__shellmath_true
     fi
 
     # Restore any leading zeroes that were lost when adding
@@ -507,7 +513,7 @@ function _shellmath_add()
         local lengthDiff=$((unsignedFracLength - unsignedFracSumLength))
         local zeroPrefix
         printf -v zeroPrefix "%0*d" "$lengthDiff" 0
-        if ((fractionalSum < 0)); then
+        if ((isFracSumNegative)); then
             fractionalSum="-"${zeroPrefix}${fractionalSum:1}
         else
             fractionalSum=${zeroPrefix}${fractionalSum}
@@ -515,7 +521,7 @@ function _shellmath_add()
     fi
 
     # Carry a digit from fraction to integer if required
-    if ((10#$fractionalSum!=0 && unsignedFracSumLength > unsignedFracLength)); then
+    if ((10#${fractionalSum#-}!=0 && unsignedFracSumLength > unsignedFracLength)); then
         local carryAmount
         ((carryAmount = isNegative1?-1:1))
         ((integerSum += carryAmount))
@@ -527,27 +533,35 @@ function _shellmath_add()
     # pair (-2,3) is not -2.3 but rather (-2)+(0.3), i.e. -1.7 so we want to
     # transform (-2,3) to (-1,7). This transformation is meaningful when
     # the two parts have opposite signs, so that's what we look for.
-    if ((integerSum < 0 && 10#$fractionalSum > 0)); then
-        ((integerSum += 1))
-        ((fractionalSum = 10#$fractionalSum - 10**unsignedFracSumLength))
-    elif ((integerSum > 0 && 10#$fractionalSum < 0)); then
+    if ((integerSum > 0 && isFracSumNegative)); then
         ((integerSum -= 1))
-        ((fractionalSum = 10**unsignedFracSumLength + 10#$fractionalSum))
-    fi
-    # This last case needs to function either as an "else" for the above,
-    # or as a coda to the "if" clause when integerSum is -1 initially.
-    if ((integerSum == 0 && 10#$fractionalSum < 0)); then
+        ((fractionalSum = 10**unsignedFracSumLength - 10#${fractionalSum#-}))
+        isFracSumNegative=$__shellmath_false
+    elif ((integerSum < 0 && !isFracSumNegative)); then
+        if ((10#$fractionalSum != 0)); then
+            ((integerSum += 1))
+            ((fractionalSum = 10#$fractionalSum - 10**unsignedFracSumLength))
+            if [[ $fractionalSum =~ ^[-] ]]; then
+                isFracSumNegative=$__shellmath_true
+                if ((integerSum == 0)); then    # i.e. was -1 initially
+                    integerSum="-"$integerSum
+                    ((fractionalSum *= -1))
+                fi
+            fi
+        fi
+    elif ((integerSum == 0 && isFracSumNegative)); then
         integerSum="-"$integerSum
         ((fractionalSum *= -1))
+        isFracSumNegative=$__shellmath_false
     fi
 
     # Touch up the numbers for display
     local sum
-    ((10#$fractionalSum < 0)) && fractionalSum=${fractionalSum:1}
+    ((isFracSumNegative)) && fractionalSum=${fractionalSum:1}
     if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
         _shellmath_numToScientific "$integerSum" "$fractionalSum"
         _shellmath_getReturnValue sum
-    elif ((10#$fractionalSum)); then
+    elif ((isFracSumNegative || 10#$fractionalSum)); then
         printf -v sum "%s.%s" "$integerSum" "$fractionalSum"
     else
         sum=$integerSum
@@ -867,7 +881,7 @@ function _shellmath_multiply()
         printf -v floatProduct "%0*d" "$floatWidth" "$floatProduct"
     fi
 
-    # Compute the inner products: First integer-multiply, then rescale
+    # Compute the inner products. First integer-multiply, then rescale
     ((innerProduct1 = integerPart1 * 10#$fractionalPart2))
     ((innerProduct2 = integerPart2 * 10#$fractionalPart1))
 
