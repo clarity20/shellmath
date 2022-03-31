@@ -103,7 +103,7 @@ function _shellmath_handleError()
 #
 # Pre-calculates certain global data and by setting the global variable
 # "__shellmath_didPrecalc" records that this routine has been called. As an
-# optimization, the caller should check that global to prevent needless
+# optimization, the caller should check this global to prevent needless
 # invocations.
 ################################################################################
 function _shellmath_precalc()
@@ -182,7 +182,7 @@ function _shellmath_validateAndParse()
 
     ((returnCode = __shellmath_SUCCESS))
     
-    # Accept decimals: leading digits (optional), decimal point, trailing digits
+    # Accept decimals. Format: leading digits (optional), decimal point, trailing digits
     if [[ "$n" =~ ^[-]?([0-9]*)\.([0-9]+)$ ]]; then
         local integerPart=${BASH_REMATCH[1]:-0}
         local fractionalPart=${BASH_REMATCH[2]}
@@ -222,7 +222,7 @@ function _shellmath_validateAndParse()
         local significand=${BASH_REMATCH[1]}
         local exponent=${BASH_REMATCH[2]}
 
-        # Validate the significand: optional sign, integer part,
+        # Validate the significand. Format: optional sign, integer part,
         # optional decimal point and fractional part
         if [[ "$significand" =~ ^[-]?([0-9]+)(\.([0-9]+))?$ ]]; then
 
@@ -355,7 +355,7 @@ function _shellmath_add()
 
     local isVerbose=$(( __shellmath_isOptimized == __shellmath_false ))
 
-    # Is the caller itself an arithmetic function?
+    # Is the caller itself an arithmetic function? Furthermore, is it multiplication?
     local isSubcall=${__shellmath_false}
     local isMultiplication=${__shellmath_false}
     if [[ "${FUNCNAME[1]}" =~ shellmath_(add|subtract|multiply|divide)$ ]]; then
@@ -409,6 +409,7 @@ function _shellmath_add()
     local flags
 
     if ((isMultiplication)); then
+        # No need to inspect and validate the inputs a second time
         integerPart1="$1"
         fractionalPart1="$2"
         integerPart2="$3"
@@ -482,8 +483,8 @@ function _shellmath_add()
 
     ((integerSum = integerPart1+integerPart2))
 
-    # Summing the fractional parts is tricky: We need to override the shell's
-    # default interpretation of leading zeros, but the operator for doing this
+    # Summing the fractional parts is tricky: We need to force the shell
+    # to ignore leading zeros, but the operator for doing this
     # (the "10#" operator) cannot work directly with negative numbers. So we
     # break it all down.
     if ((isNegative1)); then
@@ -498,7 +499,7 @@ function _shellmath_add()
     fi
 
     # Use a special variable to track the sign of the fractional sum. This is
-    # a workaround for the fact the "10#" operator for base-10 arithmetic
+    # a workaround for the fact that the "10#" operator for base-10 arithmetic
     # is broken in certain versions of the shell.
     local isFracSumNegative=$__shellmath_false
 
@@ -555,7 +556,7 @@ function _shellmath_add()
         isFracSumNegative=$__shellmath_false
     fi
 
-    # Touch up the numbers for display
+    # Touch up the numbers for display; convert to scientific notation if appropriate
     local sum
     ((isFracSumNegative)) && fractionalSum=${fractionalSum:1}
     if (( (!isSubcall) && (isScientific1 || isScientific2) )); then
@@ -845,7 +846,7 @@ function _shellmath_multiply()
         _shellmath_getReturnValues fractionalPart1 fractionalPart2
     fi
 
-    # Quick multiply & return for integer multiplies
+    # Quick multiply & return for integer arguments
     if ((type1==type2 && type1==__shellmath_numericTypes[INTEGER])); then
         ((isNegative1)) && ((integerPart1*=-1))
         ((isNegative2)) && ((integerPart2*=-1))
@@ -865,9 +866,9 @@ function _shellmath_multiply()
         return "$__shellmath_SUCCESS"
     fi
 
-    # The product has four components per the distributive law
+    # The product has four components per the distributive law.
+    # We will work with these and the widths of the decimal parts
     local intProduct floatProduct innerProduct1 innerProduct2
-    # Widths of the decimal parts
     local floatWidth fractionalWidth1 fractionalWidth2
 
     # Compute the integer and floating-point components
@@ -1013,12 +1014,12 @@ function _shellmath_divide()
         printf -v zeroTail "%0*d" "$zeroCount" 0
     fi
 
-    # Rescale and rewrite the fraction to be computed, and compute it
+    # Rescale and rewrite the ratio to be computed, and compute it
     numerator=${integerPart1}${fractionalPart1}${zeroTail}
     denominator=${integerPart2}${fractionalPart2}
     ((quotient = 10#$numerator / 10#$denominator))
 
-    # For greater precision, re-divide by the remainder to get the next digits of the quotient
+    # For greater precision divide the remainder into the denominator, giving us more low-order digits
     local remainder quotient_2
     ((remainder = 10#$numerator % 10#$denominator))   # cannot exceed numerator or thus, maxValue
     ((zeroCount = __shellmath_precision - ${#remainder}))
@@ -1033,7 +1034,7 @@ function _shellmath_divide()
     quotient=${quotient}${quotient_2}
     ((rescaleFactor += ${#quotient_2}))
 
-    # Rescale back. For aesthetic reasons we also round off at the "precision"th decimal place
+    # Rescale the quotient back. For aesthetic reasons we also round off at the "precision"th decimal place
     ((zeroCount = rescaleFactor - ${#quotient}))
     if ((zeroCount >= 0)); then
         local zeroPrefix="" fractionalPart
