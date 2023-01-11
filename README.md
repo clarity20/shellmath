@@ -90,7 +90,7 @@ script is exercising the shellmath arithmetic subroutines 31 times.___)
 The comment header in `faster_e_demo.sh` explains the optimization and shows
 how to put this faster version to work for you.
 
-## Runtime efficiency competitive with awk and bc
+## Competitive with awk and bc in runtime efficiency
 The file `timingData.txt` captures the results of some timing experiments that compare 
 `shellmath` against the GNU versions of the calculators `awk` and `bc`. The experiments
 exercised each of the arithmetic operations and captured the results in a shell variable.
