@@ -164,3 +164,5 @@ You can run your floating-point calculations directly in Bash!
 
 ## Please see also:
 [A short discussion on arbitrary precision and shellmath](https://github.com/clarity20/shellmath/wiki/Shellmath-and-arbitrary-precision-arithmetic)
+
+-- Michael Wood
